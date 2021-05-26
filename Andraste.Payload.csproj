@@ -22,8 +22,19 @@
     <ProjectReference Include="..\Andraste.Shared\Andraste.Shared.csproj" />
   </ItemGroup>
 
-      <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
-        <Reference Include="System.Windows.Forms" />
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="CppSharp.Runtime">
+      <HintPath>ImGuiIntegration\CppSharp.Runtime.dll</HintPath>
+    </Reference>
+    <Reference Include="DearImguiSharp">
+      <HintPath>ImGuiIntegration\DearImguiSharp.dll</HintPath>
+    </Reference>
+    <!-- Important, because the native file is required at runtime -->
+    <ContentWithTargetPath Include="ImGuiIntegration\cimgui.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <TargetPath>cimgui.dll</TargetPath>
+    </ContentWithTargetPath>
   </ItemGroup>
 
   <ItemGroup>
