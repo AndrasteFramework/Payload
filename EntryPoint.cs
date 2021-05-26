@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 #if NETFX
+using Andraste.Payload.Util;
 using System.Windows.Forms;
 #endif
 using EasyHook;
@@ -188,10 +189,12 @@ namespace Andraste.Payload
             logger.Fatal(e.Exception, "Got uncaught FirstChance Exception");
 
             #if NETFX
-            MessageBox.Show($"An Uncaught Exception has happened and the game will now crash!\n" +
-                            $"This is definitely caused by Andraste / {FrameworkName}!\n\n" +
-                            $"---------------------\n{e.Exception}",
-                "Uncaught Exception");
+            var text = $"An Uncaught Exception has happened and the game will now crash!\n" +
+                       $"This is definitely caused by Andraste / {FrameworkName}!\n\n" +
+                       $"---------------------\n{e.Exception}";
+
+            var mwh = Process.GetCurrentProcess().MainWindowHandle;
+            MessageBox.Show(mwh != IntPtr.Zero ? new IWin32Wrapper(mwh) : null, text, "Uncaught Exception", MessageBoxButtons.OK, MessageBoxIcon.Error);
             #endif
 
             // TODO: It could still be handled?
@@ -205,11 +208,13 @@ namespace Andraste.Payload
             logger.Fatal(e.ExceptionObject as Exception, "Got uncaught Exception");
 
             #if NETFX
-            MessageBox.Show($"An Uncaught Exception has happened and the game will now crash!\n" +
-                                        $"This is definitely caused by Andraste / {FrameworkName}!\n\n" +
-                                        $"---------------------\n{e.ExceptionObject}",
-                            "Uncaught Exception");
+            var text = $"An Uncaught Exception has happened and the game will now crash!\n" +
+                       $"This is definitely caused by Andraste / {FrameworkName}!\n\n" +
+                       $"---------------------\n{e.ExceptionObject}";
+            var mwh = Process.GetCurrentProcess().MainWindowHandle;
+            MessageBox.Show(mwh != IntPtr.Zero ? new IWin32Wrapper(mwh) : null, text, "Uncaught Exception", MessageBoxButtons.OK, MessageBoxIcon.Error);
             #endif
+
             if (e.IsTerminating)
             {
                 IsRunning = false;
