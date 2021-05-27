@@ -144,9 +144,12 @@ namespace Andraste.Payload
                 FileName = "output.log", AutoFlush = true, DeleteOldFileOnStartup = true
             };
 
+            // TODO: Proper \r\n before exception, but only if there is an exception...
             var fileErr = new FileTarget("fileErr")
             {
-                FileName = "error.log", AutoFlush = false, DeleteOldFileOnStartup = true
+                FileName = "error.log", AutoFlush = false, DeleteOldFileOnStartup = true,
+                // Default from https://github.com/NLog/NLog/wiki/File-target#layout-options
+                Layout = "${longdate}|${level:uppercase=true}|${logger}|${message}${exception:format=ToString}"
             };
 
             cfg.AddRule(LogLevel.Info, LogLevel.Warn, fileStdout);
@@ -186,7 +189,7 @@ namespace Andraste.Payload
         protected virtual void CurrentDomain_FirstChanceException(object sender,
             System.Runtime.ExceptionServices.FirstChanceExceptionEventArgs e)
         {
-            logger.Fatal(e.Exception, "Got uncaught FirstChance Exception");
+            logger.Fatal(e.Exception, $"Got uncaught FirstChance Exception{Environment.NewLine}");
 
             #if NETFX
             var text = $"An Uncaught Exception has happened and the game will now crash!\n" +
@@ -205,7 +208,7 @@ namespace Andraste.Payload
 
         protected virtual void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
-            logger.Fatal(e.ExceptionObject as Exception, "Got uncaught Exception");
+            logger.Fatal(e.ExceptionObject as Exception, $"Got uncaught Exception{Environment.NewLine}");
 
             #if NETFX
             var text = $"An Uncaught Exception has happened and the game will now crash!\n" +
