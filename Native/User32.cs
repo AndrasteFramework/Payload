@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using System.Text;
 
 namespace Andraste.Payload.Native
 {
@@ -118,5 +116,28 @@ namespace Andraste.Payload.Native
         [DllImport("user32.dll")]
         public static extern uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr ProcessId);
 
+        [DllImport("user32.dll", EntryPoint = "SetWindowLong")]
+        private static extern IntPtr _SetWindowLong(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
+
+        [DllImport("user32.dll", EntryPoint = "SetWindowLongPtr")]
+        private static extern IntPtr _SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
+
+        public static IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong)
+        {
+            return Environment.Is64BitProcess
+                ? _SetWindowLongPtr(hWnd, nIndex, dwNewLong)
+                : _SetWindowLong(hWnd, nIndex, dwNewLong);
+        }
+
+        [DllImport("user32.dll", EntryPoint = "GetWindowLong")]
+        private static extern IntPtr _GetWindowLong(IntPtr hWnd, int nIndex);
+
+        [DllImport("user32.dll", EntryPoint = "GetWindowLongPtr")]
+        private static extern IntPtr _GetWindowLongPtr(IntPtr hWnd, int nIndex);
+
+        public static IntPtr GetWindowLongPtr(IntPtr hWnd, int nIndex)
+        {
+            return Environment.Is64BitProcess ? _GetWindowLongPtr(hWnd, nIndex) : _GetWindowLong(hWnd, nIndex);
+        }
     }
 }
