@@ -29,6 +29,11 @@ namespace Andraste.Payload.Hooking
         {
             Original = (T)Marshal.GetDelegateForFunctionPointer(funcToHook, typeof(T));
         }
+
+        /// <inheritdoc cref="Hook{T}(IntPtr, T, object)"/>
+        public Hook(int funcToHook, T newFunc, object owner) : this(new IntPtr(funcToHook), newFunc, owner)
+        {
+        }
     }
 
     /// <summary>
