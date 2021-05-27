@@ -31,7 +31,7 @@ namespace Andraste.Payload.Hooking
 
         private IntPtr _hhk;
         private bool _subclassed;
-        private User32.SubclassProc _del;
+        private ComCtl32.SubclassProc _del;
 
         /// <summary>
         /// This delegate is invoked each time a message is passed to the target application.<br />
@@ -129,14 +129,14 @@ namespace Andraste.Payload.Hooking
         {
             // TODO: What happens if there are multiple Messages in the queue, so that the Subclass is added and remove simultaneously
             // Check the spec if unhooking flushes the queue or prevent this proc from being called.
-            if (nCode == User32.HC_ACTION)
+            if (nCode == ComCtl32.HC_ACTION)
             {
                 if (!_subclassed)
                 {
                     _logger.Trace("Subclassing the Window");
                     // Now we are on the Message Thread (tid), so we can register a Subclass
                     _del = PfnSubclass;
-                    if (!User32.SetWindowSubclass(WindowHandle, _del, IntPtr.Zero, IntPtr.Zero))
+                    if (!ComCtl32.SetWindowSubclass(WindowHandle, _del, IntPtr.Zero, IntPtr.Zero))
                     {
                         throw new InvalidOperationException("Error when calling SetWindowSubclass");
                     }
@@ -145,7 +145,7 @@ namespace Andraste.Payload.Hooking
                 } else if (_subclassed)
                 {
                     _logger.Trace("Removing the Window Subclass");
-                    if (!User32.RemoveWindowSubclass(WindowHandle, _del, IntPtr.Zero))
+                    if (!ComCtl32.RemoveWindowSubclass(WindowHandle, _del, IntPtr.Zero))
                     {
                         throw new InvalidOperationException("Error when calling RemoveWindowSubclass");
                     }
@@ -189,7 +189,7 @@ namespace Andraste.Payload.Hooking
                 }
             }
 
-            return User32.DefSubclassProc(hWnd, uMsg, _wParam, _lParam);
+            return ComCtl32.DefSubclassProc(hWnd, uMsg, _wParam, _lParam);
         }
     }
 }
