@@ -9,6 +9,14 @@ using SharpDX.Direct3D9;
 
 namespace Andraste.Payload.D3D9
 {
+    /// <summary>
+    /// Hook various DirectX 9 Functions and provide safe event handlers
+    /// as well as a way to manually hook other functions.
+    ///
+    /// When being compiled for .net standard 2.0 (i.e. not .net FX 4.8),
+    /// specifying a <see cref="TargetHwnd"/> is required (i.e.
+    /// acquirable after <see cref="EntryPoint.ApplicationReady"/>)
+    /// </summary>
     public class D3D9HookManager : IManager
     {
         private static readonly Logger logger = LogManager.GetCurrentClassLogger();
@@ -28,6 +36,8 @@ namespace Andraste.Payload.D3D9
         public event D3D9HookEvents.ResetDelegate Reset;
         public event D3D9HookEvents.PresentDelegate Present;
         public event D3D9HookEvents.PresentExDelegate PresentEx;
+
+        public IntPtr TargetHwnd { get; set; }
 
         private bool _enabled;
         public bool Enabled
@@ -51,21 +61,27 @@ namespace Andraste.Payload.D3D9
 
         public void Load()
         {
+            if (TargetHwnd == IntPtr.Zero)
+            {
             #if NETFX
+                using var renderForm = new System.Windows.Forms.Form();
+                TargetHwnd = renderForm.Handle;
+            #else
+                throw new ArgumentException("TargetHwnd is required, when Andraste is not compiled for .NET FX");
+            #endif
+            }
+
             // First we need to determine the function address for IDirect3DDevice9
             Id3dDeviceFunctionAddresses = new List<IntPtr>();
             //id3dDeviceExFunctionAddresses = new List<IntPtr>();
             logger.Debug("D3D9Hook: Before device creation");
             using (Direct3D d3d = new Direct3D())
             {
-                using (var renderForm = new System.Windows.Forms.Form())
+                using (var device = new Device(d3d, 0, DeviceType.NullReference, IntPtr.Zero, CreateFlags.HardwareVertexProcessing,
+                    new PresentParameters { BackBufferWidth = 1, BackBufferHeight = 1, DeviceWindowHandle = TargetHwnd }))
                 {
-                    using (var device = new Device(d3d, 0, DeviceType.NullReference, IntPtr.Zero, CreateFlags.HardwareVertexProcessing,
-                        new PresentParameters { BackBufferWidth = 1, BackBufferHeight = 1, DeviceWindowHandle = renderForm.Handle }))
-                    {
-                        logger.Debug("D3D9Hook: Device created");
-                        Id3dDeviceFunctionAddresses.AddRange(Functions.GetVTblAddresses(device.NativePointer, Functions.D3D9_DEVICE_METHOD_COUNT));
-                    }
+                    logger.Debug("D3D9Hook: Device created");
+                    Id3dDeviceFunctionAddresses.AddRange(Functions.GetVTblAddresses(device.NativePointer, Functions.D3D9_DEVICE_METHOD_COUNT));
                 }
             }
 
@@ -74,17 +90,15 @@ namespace Andraste.Payload.D3D9
                 using (var d3dEx = new Direct3DEx())
                 {
                     logger.Debug("D3D9Hook: Direct3DEx...");
-                    using (var renderForm = new System.Windows.Forms.Form())
+                    
+                    using (var deviceEx = new DeviceEx(d3dEx, 0, DeviceType.NullReference, IntPtr.Zero, CreateFlags.HardwareVertexProcessing,
+                        new PresentParameters { BackBufferWidth = 1, BackBufferHeight = 1, DeviceWindowHandle = TargetHwnd },
+                        new DisplayModeEx { Width = 800, Height = 600 }))
                     {
-                        using (var deviceEx = new DeviceEx(d3dEx, 0, DeviceType.NullReference, IntPtr.Zero, CreateFlags.HardwareVertexProcessing,
-                            new PresentParameters { BackBufferWidth = 1, BackBufferHeight = 1, DeviceWindowHandle = renderForm.Handle },
-                            new DisplayModeEx { Width = 800, Height = 600 }))
-                        {
-                            logger.Debug("D3D9Hook: DeviceEx created - PresentEx supported");
-                            Id3dDeviceFunctionAddresses.AddRange(Functions.GetVTblAddresses(deviceEx.NativePointer, 
-                                Functions.D3D9_DEVICE_METHOD_COUNT, Functions.D3D9Ex_DEVICE_METHOD_COUNT));
-                            _supportsDirect3D9Ex = true;
-                        }
+                        logger.Debug("D3D9Hook: DeviceEx created - PresentEx supported");
+                        Id3dDeviceFunctionAddresses.AddRange(Functions.GetVTblAddresses(deviceEx.NativePointer, 
+                            Functions.D3D9_DEVICE_METHOD_COUNT, Functions.D3D9Ex_DEVICE_METHOD_COUNT));
+                        _supportsDirect3D9Ex = true;
                     }
                 }
             }
@@ -135,7 +149,6 @@ namespace Andraste.Payload.D3D9
                 Hooks.Add(Direct3DDeviceEx_PresentExHook);
             }
             Hooks.Add(Direct3DDevice_ResetHook);
-            #endif
         }
 
         public void Unload()
