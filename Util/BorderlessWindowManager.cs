@@ -67,6 +67,9 @@ namespace Andraste.Payload.Util
                     return;
                 }
 
+                // Needs to be set before Restore(), because otherwise, the persistence mode kicks in
+                _enabled = value;
+
                 if (value)
                 {
                     MakeBorderless();
@@ -75,8 +78,6 @@ namespace Andraste.Payload.Util
                 {
                     Restore();
                 }
-
-                _enabled = value;
             }
         }
         
