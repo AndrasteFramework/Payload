@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace Andraste.Payload.Native
 {
@@ -139,6 +140,15 @@ namespace Andraste.Payload.Native
         {
             return Environment.Is64BitProcess ? _GetWindowLongPtr(hWnd, nIndex) : _GetWindowLong(hWnd, nIndex);
         }
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        public static extern bool SetWindowText(IntPtr hWnd, string lpString);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+        public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        public static extern int GetWindowTextLength(IntPtr hWnd);
 
         public enum VirtualKeyStates : int
         {
