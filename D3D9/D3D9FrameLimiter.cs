@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Drawing;
+using System.Runtime.InteropServices;
 using Andraste.Shared.Lifecycle;
 using SharpDX.Direct3D9;
 
@@ -33,6 +34,11 @@ namespace Andraste.Payload.D3D9
             _d3d9 = d3d9;
         }
 
+        [DllImport("winmm.dll")]
+        private static extern uint timeBeginPeriod(uint uPeriod);
+        [DllImport("winmm.dll")]
+        private static extern uint timeEndPeriod(uint uPeriod);
+
         // ReSharper disable once InconsistentNaming
         public D3D9FrameLimiter(D3D9HookManager d3d9, float targetFPS)
         {
@@ -42,16 +48,18 @@ namespace Andraste.Payload.D3D9
 
         public void Load()
         {
+            // TODO: Query min timer resolution which may not be 1
+            timeBeginPeriod(1);
             _lastFrame = DateTime.Now;
-            Loaded = true;
-
             // TODO: Support different callbacks: Present, PresentEx and EndScene
             _d3d9.Present += D3d9OnPresent;
+            Loaded = true;
         }
 
         public void Unload()
         {
             _d3d9.Present -= D3d9OnPresent;
+            timeEndPeriod(1);
             Loaded = false;
         }
 
