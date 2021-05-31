@@ -18,6 +18,11 @@ namespace Andraste.Payload.Hooking
         {
             PublicAPI,
             SemiPublicAPI,
+            /// <summary>
+            /// Only to be consumed by the Mod Framework extending Andraste,
+            /// not by the individual mods.
+            /// </summary>
+            ModFrameworkInternalAPI,
             InternalAPI
         }
     }

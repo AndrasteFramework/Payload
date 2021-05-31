@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using System.Text;
 
 namespace Andraste.Payload.Native
 {
@@ -9,5 +7,13 @@ namespace Andraste.Payload.Native
     {
         [DllImport("kernel32.dll")]
         public static extern void DebugBreak();
+        [DllImport("kernel32.dll", CharSet = CharSet.Ansi)]
+        public static extern IntPtr CreateFileA(string lpFileName, uint dwDesiredAccess,
+            uint dwShareMode, IntPtr lpSecurityAttributes, uint dwCreationDisposition,
+            uint dwFlagsAndAttributes, IntPtr hTemplateFile);
+
+        public delegate IntPtr Delegate_CreateFileA(string lpFileName, uint dwDesiredAccess,
+            uint dwShareMode, IntPtr lpSecurityAttributes, uint dwCreationDisposition,
+            uint dwFlagsAndAttributes, IntPtr hTemplateFile);
     }
 }
