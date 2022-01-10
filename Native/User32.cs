@@ -341,5 +341,8 @@ namespace Andraste.Payload.Native
         
         [DllImport("user32.dll")]
         public static extern short GetKeyState(VirtualKeyStates nVirtKey);
+        
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        public static extern int MessageBox(IntPtr hWnd, string text, string caption, uint type);
     }
 }

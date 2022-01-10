@@ -2,9 +2,9 @@
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using Andraste.Payload.Native;
 #if NETFX
 using Andraste.Payload.Util;
-using System.Windows.Forms;
 #endif
 using EasyHook;
 using NLog;
@@ -190,15 +190,14 @@ namespace Andraste.Payload
             System.Runtime.ExceptionServices.FirstChanceExceptionEventArgs e)
         {
             logger.Fatal(e.Exception, $"Got uncaught FirstChance Exception{Environment.NewLine}");
-
-            #if NETFX
-            var text = $"An Uncaught Exception has happened and the game will now crash!\n" +
+            var text = "An Uncaught Exception has happened and the game will now crash!\n" +
                        $"This is definitely caused by Andraste / {FrameworkName}!\n\n" +
                        $"---------------------\n{e.Exception}";
 
             var mwh = Process.GetCurrentProcess().MainWindowHandle;
-            MessageBox.Show(mwh != IntPtr.Zero ? new IWin32Wrapper(mwh) : null, text, "Uncaught Exception", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            #endif
+            const uint MB_OK = 0;
+            const uint MB_ICONERROR = 0x00000010U;
+            User32.MessageBox(mwh != IntPtr.Zero ? mwh : IntPtr.Zero, text, "Uncaught Exception", MB_OK | MB_ICONERROR);
 
             // TODO: It could still be handled?
             IsRunning = false;
@@ -209,14 +208,13 @@ namespace Andraste.Payload
         protected virtual void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
             logger.Fatal(e.ExceptionObject as Exception, $"Got uncaught Exception{Environment.NewLine}");
-
-            #if NETFX
-            var text = $"An Uncaught Exception has happened and the game will now crash!\n" +
+            var text = "An Uncaught Exception has happened and the game will now crash!\n" +
                        $"This is definitely caused by Andraste / {FrameworkName}!\n\n" +
                        $"---------------------\n{e.ExceptionObject}";
             var mwh = Process.GetCurrentProcess().MainWindowHandle;
-            MessageBox.Show(mwh != IntPtr.Zero ? new IWin32Wrapper(mwh) : null, text, "Uncaught Exception", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            #endif
+            const uint MB_OK = 0;
+            const uint MB_ICONERROR = 0x00000010U;
+            User32.MessageBox(mwh != IntPtr.Zero ? mwh : IntPtr.Zero, text, "Uncaught Exception", MB_OK | MB_ICONERROR);
 
             if (e.IsTerminating)
             {

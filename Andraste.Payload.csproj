@@ -24,7 +24,6 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
-    <Reference Include="System.Windows.Forms" />
     <Reference Include="CppSharp.Runtime">
       <HintPath>ImGuiIntegration\CppSharp.Runtime.dll</HintPath>
     </Reference>
