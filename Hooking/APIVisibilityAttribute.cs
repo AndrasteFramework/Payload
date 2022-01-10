@@ -9,7 +9,7 @@ namespace Andraste.Payload.Hooking
     /// It is primarily targeted at <see cref="IMemoryOffsets"/> props.
     /// </summary>
     [AttributeUsage(AttributeTargets.All)]
-    public class APIVisibilityAttribute : Attribute
+    public class ApiVisibilityAttribute : Attribute
     {
         public EVisibility Visibility;
         public string? Reasoning;

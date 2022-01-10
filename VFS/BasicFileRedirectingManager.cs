@@ -15,9 +15,10 @@ namespace Andraste.Payload.VFS
     /// completely different folder (typically the one from a mod).
     /// 
     /// </summary>
-    [APIVisibility(Visibility = APIVisibilityAttribute.EVisibility.ModFrameworkInternalAPI)]
+    [ApiVisibility(Visibility = ApiVisibilityAttribute.EVisibility.ModFrameworkInternalAPI)]
     public class BasicFileRedirectingManager : IManager
     {
+        private readonly Logger logger = LogManager.GetCurrentClassLogger(); 
         // TODO: What about "OpenFile" for older applications? What about CreateFileW?
         private Hook<Kernel32.Delegate_CreateFileA> _createFileHook;
         private readonly ConcurrentDictionary<string, string> _fileMap;
@@ -66,7 +67,7 @@ namespace Andraste.Payload.VFS
             _createFileHook = null;
         }
 
-        [APIVisibility(Visibility = APIVisibilityAttribute.EVisibility.ModFrameworkInternalAPI)]
+        [ApiVisibility(Visibility = ApiVisibilityAttribute.EVisibility.ModFrameworkInternalAPI)]
         public void ClearMappings()
         {
             _fileMap.Clear();
@@ -86,7 +87,7 @@ namespace Andraste.Payload.VFS
         /// </summary>
         /// <param name="sourcePath">The path the target application searches for</param>
         /// <param name="destPath">The path of the file that should be redirected to</param>
-        [APIVisibility(Visibility = APIVisibilityAttribute.EVisibility.ModFrameworkInternalAPI)]
+        [ApiVisibility(Visibility = ApiVisibilityAttribute.EVisibility.ModFrameworkInternalAPI)]
         public void AddMapping(string sourcePath, string destPath)
         {
             _fileMap[sourcePath.ToLower()] = destPath;
