@@ -7,6 +7,16 @@ namespace Andraste.Payload.Native
     {
         [DllImport("kernel32.dll")]
         public static extern void DebugBreak();
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Ansi)]
+        public static extern void OutputDebugStringA(string str);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+        public static extern void OutputDebugStringW(string str);
+        
+        [DllImport("kernel32.dll")]
+        public static extern bool IsDebuggerPresent();
+
         [DllImport("kernel32.dll", CharSet = CharSet.Ansi)]
         public static extern IntPtr CreateFileA(string lpFileName, uint dwDesiredAccess,
             uint dwShareMode, IntPtr lpSecurityAttributes, uint dwCreationDisposition,

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Runtime.InteropServices;
+using System.Threading;
 using Andraste.Payload.Native;
 
 namespace Andraste.Payload.Util
@@ -32,6 +33,17 @@ namespace Andraste.Payload.Util
         {
             // Place a Breakpoint here for .net Debugging
             Kernel32.DebugBreak(); // Causes a native breakpoint
+        }
+
+        /// <summary>
+        /// Wait / block the current thread until a debugger is attached
+        /// </summary>
+        public static void DebugWait()
+        {
+            while (!Kernel32.IsDebuggerPresent())
+            {
+                Thread.Sleep(1000);
+            }
         }
     }
 }
