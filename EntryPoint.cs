@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Threading;
 using Andraste.Payload.Native;
 #if NETFX
 using Andraste.Payload.Util;
@@ -63,7 +65,7 @@ namespace Andraste.Payload
 
             logger.Info($"Game Directory: {GameFolder}");
             logger.Info($"Mod Directory: {ModFolder}");
-            //logger.Info($"Host Directory: {HostFolder}");
+            logger.Info($"Host Directory: {Process.GetCurrentProcess().StartInfo.WorkingDirectory}");
             // .net 4.7.1+ 
             logger.Info($".NET Plattform: {RuntimeInformation.FrameworkDescription}");
 
@@ -80,7 +82,8 @@ namespace Andraste.Payload
                 if (!_ready && IsReady)
                 {
                     // A small wait, since some contexts might still not be ready at window creation time.
-                    System.Threading.Thread.Sleep(100);
+                    Thread.Sleep(100);
+
                     logger.Info("Calling ApplicationReady");
                     _ready = true;
                     ApplicationReady();

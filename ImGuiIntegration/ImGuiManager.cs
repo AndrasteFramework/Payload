@@ -1,4 +1,4 @@
-﻿#if !NETSTANDARD
+﻿#if NETFX
 using System;
 using System.Threading;
 using Andraste.Payload.D3D9;
