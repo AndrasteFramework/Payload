@@ -16,6 +16,7 @@ namespace Andraste.Payload.D3D9
     public class D3D9HookManager : IManager
     {
         private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+        private readonly IntPtr WindowHandle;
 
         protected Hook<Direct3D9Device_EndSceneDelegate> Direct3DDevice_EndSceneHook;
         protected Hook<Direct3D9Device_ResetDelegate> Direct3DDevice_ResetHook;
@@ -25,7 +26,7 @@ namespace Andraste.Payload.D3D9
         protected List<Hook> Hooks = new List<Hook>();
         public List<IntPtr> Id3dDeviceFunctionAddresses = new List<IntPtr>();
         //List<IntPtr> id3dDeviceExFunctionAddresses = new List<IntPtr>();
-        bool _supportsDirect3D9Ex;
+        private bool _supportsDirect3D9Ex;
         public Device Device;
 
         public event D3D9HookEvents.EndSceneDelegate EndScene;
@@ -53,6 +54,19 @@ namespace Andraste.Payload.D3D9
 
         public bool Loaded => Hooks.Count > 0;
 
+        /// <summary>
+        /// Creates an instance of the DirectX 9 Hooking Manager.<br />
+        /// Note that you can pass <see cref="IntPtr.Zero"/> as windowHandle, but that does not work for some applications,
+        /// presumably exclusive fullscreen ones.<br />
+        /// You can also create a dummy window, but try NOT to use Windows.Forms because that has a lot of side-effects,
+        /// which is why we removed the automatic WF Window creation that this manager previously did.
+        /// </summary>
+        /// <param name="windowHandle">The window handle to use when creating a direct3d device</param>
+        public D3D9HookManager(IntPtr windowHandle)
+        {
+            WindowHandle = windowHandle;
+        }
+
         public void Load()
         {
             // First we need to determine the function address for IDirect3DDevice9
@@ -62,7 +76,7 @@ namespace Andraste.Payload.D3D9
             using (Direct3D d3d = new Direct3D())
             {
                 using (var device = new Device(d3d, 0, DeviceType.NullReference, IntPtr.Zero, CreateFlags.HardwareVertexProcessing,
-                    new PresentParameters { BackBufferWidth = 1, BackBufferHeight = 1, DeviceWindowHandle = IntPtr.Zero }))
+                    new PresentParameters { BackBufferWidth = 1, BackBufferHeight = 1, DeviceWindowHandle = WindowHandle }))
                 {
                     logger.Debug("D3D9Hook: Device created");
                     Id3dDeviceFunctionAddresses.AddRange(Functions.GetVTblAddresses(device.NativePointer, Functions.D3D9_DEVICE_METHOD_COUNT));
@@ -76,7 +90,7 @@ namespace Andraste.Payload.D3D9
                     logger.Debug("D3D9Hook: Direct3DEx...");
                     
                     using (var deviceEx = new DeviceEx(d3dEx, 0, DeviceType.NullReference, IntPtr.Zero, CreateFlags.HardwareVertexProcessing,
-                        new PresentParameters { BackBufferWidth = 1, BackBufferHeight = 1, DeviceWindowHandle = IntPtr.Zero },
+                        new PresentParameters { BackBufferWidth = 1, BackBufferHeight = 1, DeviceWindowHandle = WindowHandle },
                         new DisplayModeEx { Width = 800, Height = 600 }))
                     {
                         logger.Debug("D3D9Hook: DeviceEx created - PresentEx supported");
@@ -249,6 +263,19 @@ namespace Andraste.Payload.D3D9
             Device ??= (Device)devicePtr;
 
             return Direct3DDevice_EndSceneHook.Original(devicePtr);
+        }
+
+        /// <summary>
+        /// It takes at least one frame (DX call to Present, EndScene, ..) for <see cref="Device"/> to be present.
+        /// 
+        /// </summary>
+        public void WaitForDevicePresence()
+        {
+            while (Device == null)
+            {
+                logger.Trace("Waiting for Device Presence");
+                Thread.Sleep(250);
+            }
         }
     }
 }
