@@ -91,7 +91,7 @@ namespace Andraste.Payload.Util
         /// the <see cref="WndProcManager"/>, which will re-apply styles when
         /// the application tries to change them.</param>
         /// <exception cref="ArgumentNullException">When <paramref name="windowHandle"/> is null</exception>
-        public BorderlessWindowManager(IntPtr windowHandle, WndProcManager wndProcManager)
+        public BorderlessWindowManager(IntPtr windowHandle, WndProcManager wndProcManager = null)
         {
             if (windowHandle == IntPtr.Zero)
             {
@@ -101,12 +101,7 @@ namespace Andraste.Payload.Util
             _windowHandle = windowHandle;
             _wndProcManager = wndProcManager;
         }
-
-        /// <inheritdoc cref="BorderlessWindowManager(IntPtr, WndProcManager)"/>
-        public BorderlessWindowManager(IntPtr windowHandle) : this(windowHandle, null)
-        {
-        }
-
+        
         public void Load()
         {
             if (Loaded)
@@ -140,10 +135,10 @@ namespace Andraste.Payload.Util
         /// </summary>
         public void MakeBorderless()
         {
-            var oldWS = User32.GetWindowLongPtr(_windowHandle, GWL_STYLE);
-            var oldWSExtended = User32.GetWindowLongPtr(_windowHandle, GWL_EXSTYLE);
+            var oldWs = User32.GetWindowLongPtr(_windowHandle, GWL_STYLE);
+            var oldWsExtended = User32.GetWindowLongPtr(_windowHandle, GWL_EXSTYLE);
 
-            if (oldWS == BorderlessStyle(oldWS) && oldWSExtended == BorderlessStyleExtended(oldWSExtended))
+            if (oldWs == BorderlessStyle(oldWs) && oldWsExtended == BorderlessStyleExtended(oldWsExtended))
             {
                 // Prevent overwriting _windowStyle/Extended with borderless values
                 // When this code is reached, the window already is borderless.
@@ -151,8 +146,8 @@ namespace Andraste.Payload.Util
             }
 
             // Store the original styles
-            _windowStyle = oldWS;
-            _windowStyleExtended = oldWSExtended;
+            _windowStyle = oldWs;
+            _windowStyleExtended = oldWsExtended;
 
             // Remove the styles with a negative bitmask
             var styleNew = BorderlessStyle(_windowStyle);
