@@ -151,6 +151,9 @@ namespace Andraste.Payload.D3D9
         GetDisplayModeEx = 133,
     }
 
+    [UnmanagedFunctionPointer(CallingConvention.StdCall, CharSet = CharSet.Unicode, SetLastError = true)]
+    public delegate int Direct3D9Device_BeginSceneDelegate(IntPtr device);
+
     /// <summary>
     /// The IDirect3DDevice9.EndScene function definition
     /// </summary>

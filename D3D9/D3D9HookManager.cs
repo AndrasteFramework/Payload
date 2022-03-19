@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Threading;
 using Andraste.Payload.Hooking;
+using Andraste.Payload.Native;
 using Andraste.Shared.Lifecycle;
 using NLog;
 using SharpDX.Direct3D9;
@@ -18,6 +19,7 @@ namespace Andraste.Payload.D3D9
         private static readonly Logger logger = LogManager.GetCurrentClassLogger();
         private readonly IntPtr WindowHandle;
 
+        protected Hook<Direct3D9Device_BeginSceneDelegate> Direct3DDevice_BeginSceneHook;
         protected Hook<Direct3D9Device_EndSceneDelegate> Direct3DDevice_EndSceneHook;
         protected Hook<Direct3D9Device_ResetDelegate> Direct3DDevice_ResetHook;
         protected Hook<Direct3D9Device_PresentDelegate> Direct3DDevice_PresentHook;
@@ -33,6 +35,8 @@ namespace Andraste.Payload.D3D9
         public event D3D9HookEvents.ResetDelegate Reset;
         public event D3D9HookEvents.PresentDelegate Present;
         public event D3D9HookEvents.PresentExDelegate PresentEx;
+
+        private bool hasBeenReset = false;
 
         private bool _enabled;
         public bool Enabled
@@ -80,8 +84,6 @@ namespace Andraste.Payload.D3D9
                 {
                     logger.Debug("D3D9Hook: Device created");
                     Id3dDeviceFunctionAddresses.AddRange(Functions.GetVTblAddresses(device.NativePointer, Functions.D3D9_DEVICE_METHOD_COUNT));
-                }
-            }
 
             try
             {
@@ -104,6 +106,10 @@ namespace Andraste.Payload.D3D9
             {
                 _supportsDirect3D9Ex = false;
             }
+
+            Direct3DDevice_BeginSceneHook = new Hook<Direct3D9Device_BeginSceneDelegate>(
+                Id3dDeviceFunctionAddresses[(int)Direct3DDevice9FunctionOrdinals.BeginScene],
+                BeginSceneHook, this);
 
             // We want to hook each method of the IDirect3DDevice9 interface that we are interested in
             // 42 - EndScene (we will retrieve the back buffer here)
@@ -140,6 +146,7 @@ namespace Andraste.Payload.D3D9
                 // Note: GetD3D9DeviceFunctionAddress will output these addresses to a log file
                 ResetHook, this);
 
+            Hooks.Add(Direct3DDevice_BeginSceneHook);
             Hooks.Add(Direct3DDevice_EndSceneHook);
             Hooks.Add(Direct3DDevice_PresentHook);
             if (_supportsDirect3D9Ex)
@@ -195,7 +202,7 @@ namespace Andraste.Payload.D3D9
             IntPtr hDestWindowOverride, IntPtr pDirtyRegion)
         {
             // Mumble uses StateBlocks. ((Device)devicePtr).BeginStateBlock();
-            logger.Trace("Present called");
+            //logger.Trace("Present called");
 
             try
             {
@@ -224,8 +231,24 @@ namespace Andraste.Payload.D3D9
 
             Device ??= (Device) devicePtr;
 
-            return Direct3DDevice_PresentHook.Original(devicePtr, pSourceRect, pDestRect,
+            if(hasBeenReset)
+            {
+                //Kernel32.DebugBreak();
+            }
+            var result = Direct3DDevice_PresentHook.Original(devicePtr, pSourceRect, pDestRect,
                 hDestWindowOverride, pDirtyRegion);
+            // 0x88760868
+            if (result == ResultCode.DeviceLost.Code)
+            {
+                //logger.Warn($"Call to Present failed with code: {result} | 0x{result:X}");
+                logger.Error("GPU device has been lost");
+                var coopResult = Device.TestCooperativeLevel();
+                logger.Warn($"Device.TestCooperativeLevel = {coopResult:X}");
+                //Kernel32.DebugBreak();
+                //logger.Warn("Attempting device reset...");
+                //Device.Reset();
+            }
+            return result;
         }
 
         private int ResetHook(IntPtr devicePtr, ref PresentParameters presentParameters)
@@ -243,13 +266,23 @@ namespace Andraste.Payload.D3D9
 
             Device ??= (Device)devicePtr;
 
-            return Direct3DDevice_ResetHook.Original(devicePtr, ref presentParameters);
+            var result = Direct3DDevice_ResetHook.Original(devicePtr, ref presentParameters);
+            hasBeenReset = true;
+            logger.Trace($"ResetHook Original Result = {result:X}");
+            logger.Trace($"After reset, Device.TestCooperativeLevel() = {Device.TestCooperativeLevel()}");
+            return result;
         }
 
+        private int BeginSceneHook(IntPtr devicePtr)
+        {
+            var result = Direct3DDevice_BeginSceneHook.Original(devicePtr);
+            //logger.Trace($"BeginScene returned {result}");
+            return result;
+        }
 
         private int EndSceneHook(IntPtr devicePtr)
         {
-            logger.Trace("EndScene called");
+            //logger.Trace("EndScene called");
             try
             {
                 // https://codeblog.jonskeet.uk/2015/01/30/clean-event-handlers-invocation-with-c-6/
@@ -262,7 +295,9 @@ namespace Andraste.Payload.D3D9
 
             Device ??= (Device)devicePtr;
 
-            return Direct3DDevice_EndSceneHook.Original(devicePtr);
+            var result = Direct3DDevice_EndSceneHook.Original(devicePtr);
+            //logger.Trace($"EndScene returned {result}");
+            return result;
         }
 
         /// <summary>
