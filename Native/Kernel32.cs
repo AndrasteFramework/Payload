@@ -10,6 +10,7 @@ namespace Andraste.Payload.Native
 
         [DllImport("kernel32.dll", CharSet = CharSet.Ansi)]
         public static extern void OutputDebugStringA(string str);
+        public delegate void DelegateOutputDebugString(string str);
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
         public static extern void OutputDebugStringW(string str);
