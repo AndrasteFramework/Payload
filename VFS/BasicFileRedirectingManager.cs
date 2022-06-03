@@ -18,7 +18,7 @@ namespace Andraste.Payload.VFS
     [ApiVisibility(Visibility = ApiVisibilityAttribute.EVisibility.ModFrameworkInternalAPI)]
     public class BasicFileRedirectingManager : IManager
     {
-        private readonly Logger logger = LogManager.GetCurrentClassLogger(); 
+        private readonly Logger _logger = LogManager.GetCurrentClassLogger(); 
         // TODO: What about "OpenFile" for older applications? What about CreateFileW?
         private Hook<Kernel32.Delegate_CreateFileA> _createFileHook;
         private readonly ConcurrentDictionary<string, string> _fileMap;
@@ -53,12 +53,40 @@ namespace Andraste.Payload.VFS
                 LocalHook.GetProcAddress("kernel32.dll", "CreateFileA"),
                 (name, access, mode, attributes, disposition, andAttributes, file) =>
                 {
-                    //LogManager.GetCurrentClassLogger().Warn($"CreateFileA {name} => {_fileMap.ContainsKey(name.ToLower())}");
-                    return _createFileHook.Original(_fileMap.ContainsKey(name.ToLower()) ? _fileMap[name.ToLower()] : name, access, mode,
-                        attributes, disposition, andAttributes, file
-                    );
+                    var queryFile = SanitizePath(name);
+                    // Debug Logging
+                    // _logger.Info($"CreateFileA {name} ({queryFile}) => {_fileMap.ContainsKey(queryFile)}");
+                    // if (_fileMap.ContainsKey(queryFile)) _logger.Info($"{queryFile} redirected to {_fileMap[queryFile]}");
+                    var fileName = _fileMap.ContainsKey(queryFile) ? _fileMap[queryFile] : name;
+
+                    return _createFileHook.Original(fileName, access, mode,attributes, disposition, andAttributes, file);
                 },
                 this);
+        }
+
+        private string SanitizePath(string fileName)
+        {
+            // Maybe we could instead do something like Path.Resolve on fileName, so it's always an absolute path first, to get rid of relative path-isms.
+            string result;
+
+            if (fileName.ToLowerInvariant().StartsWith(EntryPoint.GameFolder.ToLowerInvariant()))
+            {
+                result = fileName.ToLowerInvariant().Substring(EntryPoint.GameFolder.ToLowerInvariant().Length);
+                // Depending on if the GameFolder has a trailing slash:
+                if (result.StartsWith("\\"))
+                {
+                    result = result.Substring(1);
+                }
+            }
+            else
+            {
+                result = fileName.ToLowerInvariant();
+            }
+
+            // Replace forward slashes
+            result = result.Replace('/', '\\');
+
+            return result;
         }
 
         public void Unload()
