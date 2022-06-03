@@ -140,8 +140,19 @@ namespace Andraste.Payload
         /// </summary>
         protected virtual void SetupLogging()
         {
+            // Workaround: For some reason, NLog is only flushing/deleting the file, once you log something to it,
+            // so we're going to force-delete the files for now.
+            if (File.Exists(Path.Combine(ModFolder, "output.log")))
+            {
+                File.Delete(Path.Combine(ModFolder, "output.log"));
+            }
+            
+            if (File.Exists(Path.Combine(ModFolder, "error.log")))
+            {
+                File.Delete(Path.Combine(ModFolder, "error.log"));
+            }
+            
             var cfg = new LoggingConfiguration();
-
             var fileStdout = new FileTarget("fileStdout")
             {
                 FileName = "output.log", AutoFlush = true, DeleteOldFileOnStartup = true
@@ -157,7 +168,6 @@ namespace Andraste.Payload
 
             cfg.AddRule(LogLevel.Info, LogLevel.Warn, fileStdout);
             cfg.AddRule(LogLevel.Error, LogLevel.Fatal, fileErr);
-
             LogManager.Configuration = cfg;
         }
         #endregion
