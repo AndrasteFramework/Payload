@@ -45,10 +45,13 @@ namespace Andraste.Payload
         public bool IsReady => Process.GetCurrentProcess().MainWindowHandle != IntPtr.Zero;
         private bool _ready;
 
+        public readonly ManagerContainer Container;
+
         protected EntryPoint(RemoteHooking.IContext context)
         {
             GameFolder = Directory.GetCurrentDirectory();
-            ModFolder = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+            ModFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            Container = new ManagerContainer();
         }
 
         public virtual void Run(RemoteHooking.IContext context)
@@ -72,6 +75,8 @@ namespace Andraste.Payload
             logger.Info("Internal Initialization done, calling Pre-Wakeup");
 
             PreWakeup();
+            logger.Trace("Loading the Managers");
+            Container.Load();
             logger.Info("Waking up the Application");
             RemoteHooking.WakeUpProcess();
             logger.Info("Calling Post-Wakeup");
@@ -89,7 +94,7 @@ namespace Andraste.Payload
                     ApplicationReady();
                 }
 
-                System.Threading.Thread.Sleep(100);
+                Thread.Sleep(100);
             }
 
             Shutdown();
