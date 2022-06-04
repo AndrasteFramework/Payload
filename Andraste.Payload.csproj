@@ -18,6 +18,7 @@
     <PackageReference Include="Iced" Version="1.11.3" />
     <PackageReference Include="NLog" Version="4.7.10" />
     <PackageReference Include="SharpDX.Direct3D9" Version="4.2.0" />
+    <PackageReference Include="System.Text.Json" Version="6.0.0" />
   </ItemGroup>
 
   <ItemGroup>

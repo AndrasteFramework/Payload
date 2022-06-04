@@ -1,13 +1,20 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using System.Threading;
+using Andraste.Payload.ModManagement;
 using Andraste.Payload.Native;
-#if NETFX
-using Andraste.Payload.Util;
-#endif
+using Andraste.Payload.VFS;
+using Andraste.Shared.Lifecycle;
+using Andraste.Shared.ModManagement;
+using Andraste.Shared.ModManagement.Features;
+using Andraste.Shared.ModManagement.Json;
+using Andraste.Shared.ModManagement.Json.Features;
 using EasyHook;
 using NLog;
 using NLog.Config;
@@ -44,14 +51,17 @@ namespace Andraste.Payload
         /// </summary>
         public bool IsReady => Process.GetCurrentProcess().MainWindowHandle != IntPtr.Zero;
         private bool _ready;
-
+        
+        protected readonly Dictionary<string, IFeatureParser> FeatureParser = new Dictionary<string, IFeatureParser>();
         public readonly ManagerContainer Container;
+        private readonly ModLoader _modLoader;
 
         protected EntryPoint(RemoteHooking.IContext context)
         {
             GameFolder = Directory.GetCurrentDirectory();
             ModFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             Container = new ManagerContainer();
+            _modLoader = new ModLoader(this);
         }
 
         public virtual void Run(RemoteHooking.IContext context)
@@ -72,11 +82,18 @@ namespace Andraste.Payload
             // .net 4.7.1+ 
             logger.Info($".NET Plattform: {RuntimeInformation.FrameworkDescription}");
 
-            logger.Info("Internal Initialization done, calling Pre-Wakeup");
+            logger.Info("Loading Mods");
+            LoadMods();
 
+            logger.Info("Internal Initialization done, calling Pre-Wakeup");
             PreWakeup();
+            
             logger.Trace("Loading the Managers");
             Container.Load();
+
+            logger.Info("Implementing Mods");
+            ImplementMods();
+            
             logger.Info("Waking up the Application");
             RemoteHooking.WakeUpProcess();
             logger.Info("Calling Post-Wakeup");
@@ -107,6 +124,61 @@ namespace Andraste.Payload
             Environment.Exit(1);
         }
 
+        #region Mods
+        /// <summary>
+        /// The mods have been parsed into <see cref="EnabledMods"/>, including their feature statements, and the
+        /// framework had a chance in changing this in <see cref="PreWakeup"/>.
+        /// Now the mods are "implemented", that means, the parsed features are used to dispatch hooks and others.
+        /// </summary>
+        protected virtual void ImplementMods()
+        {
+            _modLoader.ImplementVfs();
+        }
+
+        /// <summary>
+        /// Scans for a launcher-defined mods.json and examines it's contents.
+        /// It will then proceed to load and register the mods, so they are available for the framework impl in
+        /// PreWakeup, but they will be only activated after PreWakeup returns (but before actually waking up)
+        /// </summary>
+        protected virtual void LoadMods()
+        {
+            DiscoverMods();
+            LoadFeatureParsers();
+            ParseModFeatures();
+        }
+
+        protected virtual void ParseModFeatures()
+        {
+            foreach (var mods in _modLoader.EnabledMods)
+            {
+                logger.Info($"Enabled Mod {mods.ModInformation.Slug}");
+                var conf = mods.ModInformation.Configurations[mods.ModSetting.ActiveConfiguration];
+                foreach (var feature in conf.Features.Keys)
+                {
+                    if (FeatureParser.ContainsKey(feature))
+                    {
+                        var parsed = FeatureParser[feature].Parse(conf.Features[feature]);
+                        conf._parsedFeatures.Add(feature, parsed);
+                    }
+                    else
+                    {
+                        logger.Warn($"Unknown Feature {feature}. Skipping");
+                    }
+                }
+            }
+        }
+
+        protected virtual void DiscoverMods()
+        {
+            _modLoader.EnabledMods = _modLoader.DiscoverMods(ModFolder);
+        }
+
+        protected virtual void LoadFeatureParsers()
+        {
+            FeatureParser.Add("andraste.builtin.vfs", new VFSFeatureParser());
+        }
+        #endregion
+        
         #region Lifecycle
         /// <summary>
         /// This is called when Andraste has been loaded so far and the user
