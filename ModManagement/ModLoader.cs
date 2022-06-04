@@ -30,11 +30,6 @@ namespace Andraste.Payload.ModManagement
                              x.ActiveConfiguration._parsedFeatures.ContainsKey("andraste.builtin.vfs")))
                 {
                     BuiltinVfsFeature feature = mod.ActiveConfiguration._parsedFeatures["andraste.builtin.vfs"];
-                    if (feature.Files.Count > 0)
-                    {
-                        Logger.Warn("andraste.builtin.vfs: files directive is not yet supported, ignoring.");
-                    }
-
                     foreach (var directory in feature.Directories)
                     {
                         var basePath = Path.Combine(mod.ModSetting.ModPath, directory);
@@ -56,11 +51,11 @@ namespace Andraste.Payload.ModManagement
                         {
                             if (!File.Exists(absolutePath))
                             {
-                                Logger.Warn($"{mod.ModInformation.Slug} is trying to redirect \"{fileEntry.Key}\" to non-existent \"{fileEntry.Value}\"." +
+                                Logger.Warn($"{mod.ModInformation.Slug} is trying to redirect \"{fileEntry.Key}\" to non-existent \"{fileEntry.Value}\". " +
                                             "If this is intentional, redirect it to \"INTENTIONAL\"");
                             }
                         }
-                        
+                        Logger.Trace($"Registering {fileEntry.Key} as VFS for {mod.ModInformation.Slug}");
                         vfs.AddMapping(fileEntry.Key, absolutePath);
                     }
                 }
