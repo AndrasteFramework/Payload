@@ -11,6 +11,7 @@ using Andraste.Payload.Native;
 using Andraste.Shared.Lifecycle;
 using Andraste.Shared.ModManagement.Features;
 using Andraste.Shared.ModManagement.Json.Features;
+using Andraste.Shared.ModManagement.Json.Features.Plugin;
 using EasyHook;
 using NLog;
 using NLog.Config;
@@ -115,6 +116,7 @@ namespace Andraste.Payload
         protected virtual void Shutdown()
         {
             Logger.Info("Shutting down and exiting CLR");
+            _modLoader?.UnloadPlugins();
             Container.Unload();
             UnregisterExceptionHandlers();
             Environment.Exit(1);
@@ -122,13 +124,15 @@ namespace Andraste.Payload
 
         #region Mods
         /// <summary>
-        /// The mods have been parsed into <see cref="EnabledMods"/>, including their feature statements, and the
+        /// The mods have been parsed into <see cref="ModLoader.EnabledMods"/>, including their feature statements, and the
         /// framework had a chance in changing this in <see cref="PreWakeup"/>.
         /// Now the mods are "implemented", that means, the parsed features are used to dispatch hooks and others.
         /// </summary>
         protected virtual void ImplementMods()
         {
             _modLoader.ImplementVfs();
+            _modLoader.ImplementPlugins();
+            _modLoader.LoadPlugins();
         }
 
         /// <summary>
@@ -172,6 +176,7 @@ namespace Andraste.Payload
         protected virtual void LoadFeatureParsers()
         {
             FeatureParser.Add("andraste.builtin.vfs", new VFSFeatureParser());
+            FeatureParser.Add("andraste.builtin.plugin", new PluginFeatureParser());
         }
         #endregion
         
@@ -239,7 +244,7 @@ namespace Andraste.Payload
                 Layout = "${longdate}|${level:uppercase=true}|${logger}|${message}${exception:format=ToString}"
             };
 
-            cfg.AddRule(LogLevel.Info, LogLevel.Warn, fileStdout);
+            cfg.AddRule(LogLevel.Trace, LogLevel.Warn, fileStdout);
             cfg.AddRule(LogLevel.Error, LogLevel.Fatal, fileErr);
             LogManager.Configuration = cfg;
         }

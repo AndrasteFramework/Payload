@@ -2,11 +2,13 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text.Json;
 using Andraste.Payload.VFS;
 using Andraste.Shared.ModManagement;
 using Andraste.Shared.ModManagement.Json;
 using Andraste.Shared.ModManagement.Json.Features;
+using Andraste.Shared.ModManagement.Json.Features.Plugin;
 using NLog;
 
 namespace Andraste.Payload.ModManagement
@@ -16,6 +18,8 @@ namespace Andraste.Payload.ModManagement
         private EntryPoint _entryPoint;
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         public List<EnabledMod> EnabledMods = new List<EnabledMod>();
+        public Dictionary<EnabledMod, IPlugin> Plugins = new Dictionary<EnabledMod, IPlugin>();
+        
         public ModLoader(EntryPoint entryPoint)
         {
             _entryPoint = entryPoint;
@@ -111,6 +115,76 @@ namespace Andraste.Payload.ModManagement
             }
 
             return enabledMods;
+        }
+
+        public void ImplementPlugins()
+        {
+            foreach (var mod in EnabledMods.Where(x =>
+                         x.ActiveConfiguration._parsedFeatures.ContainsKey("andraste.builtin.plugin")))
+            {
+                BuiltinPluginFeature feature = mod.ActiveConfiguration._parsedFeatures["andraste.builtin.plugin"];
+                var dll = Path.Combine(mod.ModSetting.ModPath, feature.AssemblyFilePath);
+
+                if (!File.Exists(dll))
+                {
+                    Logger.Warn($"Cannot load the plugin of {mod.ModInformation.Slug}, because {dll} does not exist");
+                    continue;
+                }
+
+                try
+                {
+                    var assembly = Assembly.LoadFile(dll);
+                    var pluginType = assembly.GetType(feature.PluginClassName, false, true);
+
+                    if (pluginType == null)
+                    {
+                        Logger.Warn($"Cannot load the plugin of {mod.ModInformation.Slug}, " +
+                                    $"because the type {feature.PluginClassName} does not exist");
+                        continue;
+                    }
+
+                    if (!typeof(IPlugin).IsAssignableFrom(pluginType))
+                    {
+                        Logger.Warn($"Cannot load the plugin of {mod.ModInformation.Slug}, " +
+                                    $"because the type {feature.PluginClassName} is no IPlugin");
+                        continue;
+                    }
+
+                    var plugin = (IPlugin)Activator.CreateInstance(pluginType);
+                    plugin.Bind(mod, _entryPoint);
+                    Plugins.Add(mod, plugin);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Warn(ex, $"Exception when trying to load the plugin of {mod.ModInformation.Slug}");
+                }
+            }
+        }
+
+        public void LoadPlugins()
+        {
+            foreach (var plugin in Plugins.Values)
+            {
+                plugin.Load();
+            }
+
+            foreach (var plugin in Plugins.Values)
+            {
+                plugin.Enabled = true;
+            }
+        }
+
+        public void UnloadPlugins()
+        {
+            foreach (var plugin in Plugins.Values.Where(plugin => plugin.Enabled))
+            {
+                plugin.Enabled = false;
+            }
+
+            foreach (var plugin in Plugins.Values.Where(plugin => plugin.Loaded))
+            {
+                plugin.Unload();
+            }
         }
     }
 }
