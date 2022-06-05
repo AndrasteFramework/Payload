@@ -21,7 +21,7 @@ namespace Andraste.Payload
     // TODO: Proper Shutdown detection using WM_ or something.
     public abstract class EntryPoint : IEntryPoint
     {
-        private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+        private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
         // TODO: Move into dedicated class
         public static string GameFolder;
@@ -72,27 +72,26 @@ namespace Andraste.Payload
                 SetupLogging();
             }
 
-            logger.Info($"Game Directory: {GameFolder}");
-            logger.Info($"Mod Directory: {ModFolder}");
-            logger.Info($"Host Directory: {Process.GetCurrentProcess().StartInfo.WorkingDirectory}");
-            // .net 4.7.1+ 
-            logger.Info($".NET Plattform: {RuntimeInformation.FrameworkDescription}");
+            Logger.Info($"Game Directory: {GameFolder}");
+            Logger.Info($"Mod Directory: {ModFolder}");
+            //logger.Info($"Host Directory: {Process.GetCurrentProcess().StartInfo.WorkingDirectory}");
+            Logger.Info($".NET Plattform: {RuntimeInformation.FrameworkDescription}"); // .net 4.7.1+ 
 
-            logger.Info("Loading Mods");
+            Logger.Trace("Loading Mods");
             LoadMods();
 
-            logger.Info("Internal Initialization done, calling Pre-Wakeup");
+            Logger.Trace("Internal Initialization done, calling Pre-Wakeup");
             PreWakeup();
             
-            logger.Trace("Loading the Managers");
+            Logger.Trace("Loading the Managers");
             Container.Load();
 
-            logger.Info("Implementing Mods");
+            Logger.Trace("Implementing Mods");
             ImplementMods();
             
-            logger.Info("Waking up the Application");
+            Logger.Trace("Waking up the Application");
             RemoteHooking.WakeUpProcess();
-            logger.Info("Calling Post-Wakeup");
+            Logger.Trace("Calling Post-Wakeup");
             PostWakeup();
 
             while (IsRunning)
@@ -102,7 +101,7 @@ namespace Andraste.Payload
                     // A small wait, since some contexts might still not be ready at window creation time.
                     Thread.Sleep(100);
 
-                    logger.Info("Calling ApplicationReady");
+                    Logger.Trace("Calling ApplicationReady");
                     _ready = true;
                     ApplicationReady();
                 }
@@ -115,7 +114,7 @@ namespace Andraste.Payload
 
         protected virtual void Shutdown()
         {
-            logger.Info("Shutting down and exiting CLR");
+            Logger.Info("Shutting down and exiting CLR");
             UnregisterExceptionHandlers();
             Environment.Exit(1);
         }
@@ -147,7 +146,7 @@ namespace Andraste.Payload
         {
             foreach (var mods in _modLoader.EnabledMods)
             {
-                logger.Info($"Enabled Mod {mods.ModInformation.Slug}");
+                Logger.Info($"Enabled Mod {mods.ModInformation.Slug}");
                 var conf = mods.ModInformation.Configurations[mods.ModSetting.ActiveConfiguration];
                 foreach (var feature in conf.Features.Keys)
                 {
@@ -158,7 +157,7 @@ namespace Andraste.Payload
                     }
                     else
                     {
-                        logger.Warn($"Unknown Feature {feature}. Skipping");
+                        Logger.Warn($"Unknown Feature {feature}. Skipping");
                     }
                 }
             }
@@ -273,9 +272,9 @@ namespace Andraste.Payload
         }
 
         protected virtual void CurrentDomain_FirstChanceException(object sender,
-            System.Runtime.ExceptionServices.FirstChanceExceptionEventArgs e)
+            FirstChanceExceptionEventArgs e)
         {
-            logger.Fatal(e.Exception, $"Got uncaught FirstChance Exception{Environment.NewLine}");
+            Logger.Fatal(e.Exception, $"Got uncaught FirstChance Exception{Environment.NewLine}");
             var text = "An Uncaught Exception has happened and the game will now crash!\n" +
                        $"This is definitely caused by Andraste / {FrameworkName}!\n\n" +
                        $"---------------------\n{e.Exception}";
@@ -293,7 +292,7 @@ namespace Andraste.Payload
 
         protected virtual void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
-            logger.Fatal(e.ExceptionObject as Exception, $"Got uncaught Exception{Environment.NewLine}");
+            Logger.Fatal(e.ExceptionObject as Exception, $"Got uncaught Exception{Environment.NewLine}");
             var text = "An Uncaught Exception has happened and the game will now crash!\n" +
                        $"This is definitely caused by Andraste / {FrameworkName}!\n\n" +
                        $"---------------------\n{e.ExceptionObject}";
@@ -312,7 +311,7 @@ namespace Andraste.Payload
 
         protected virtual void CurrentDomain_ProcessExit(object sender, EventArgs e)
         {
-            logger.Info("Got ProcessExit: Shutting down!");
+            Logger.Info("Got ProcessExit: Shutting down!");
             IsRunning = false;
         }
         #endregion
