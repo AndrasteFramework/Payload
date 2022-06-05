@@ -115,6 +115,7 @@ namespace Andraste.Payload
         protected virtual void Shutdown()
         {
             Logger.Info("Shutting down and exiting CLR");
+            Container.Unload();
             UnregisterExceptionHandlers();
             Environment.Exit(1);
         }
