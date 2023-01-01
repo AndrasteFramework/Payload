@@ -26,5 +26,8 @@ namespace Andraste.Payload.Native
         public delegate IntPtr Delegate_CreateFileA(string lpFileName, uint dwDesiredAccess,
             uint dwShareMode, IntPtr lpSecurityAttributes, uint dwCreationDisposition,
             uint dwFlagsAndAttributes, IntPtr hTemplateFile);
+        
+        [DllImport("kernel32.dll")]
+        public static extern bool VirtualProtect(IntPtr lpAddress, IntPtr dwSize, uint flNewProtect, out uint lpflOldProtect);
     }
 }
