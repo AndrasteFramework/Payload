@@ -43,7 +43,7 @@ namespace Andraste.Payload.ModManagement
                         {
                             var relativePath = file.Substring(basePath.Length);
                             Logger.Trace($"Registering {relativePath} as VFS for {mod.ModInformation.Slug}");
-                            vfs.AddMapping(relativePath, file);
+                            vfs.AddMapping(relativePath, file.Replace('/', '\\'));
                         }
                     }
 
