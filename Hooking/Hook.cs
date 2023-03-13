@@ -106,7 +106,7 @@ namespace Andraste.Payload.Hooking
         }
 
         /// <summary>
-        /// Activates the hook
+        /// Activates the hook for every thread except the calling thread!
         /// </summary>
         public void Activate()
         {
@@ -120,7 +120,7 @@ namespace Andraste.Payload.Hooking
         }
 
         /// <summary>
-        /// Deactivates the hook
+        /// Deactivates the hook for the current thread
         /// </summary>
         public void Deactivate()
         {

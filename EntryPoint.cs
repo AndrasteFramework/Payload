@@ -73,6 +73,8 @@ namespace Andraste.Payload
                 SetupLogging();
             }
 
+            Thread.CurrentThread.Name = "Andraste Main-Thread";
+
             Logger.Info($"Game Directory: {GameFolder}");
             Logger.Info($"Mod Directory: {ModFolder}");
             //logger.Info($"Host Directory: {Process.GetCurrentProcess().StartInfo.WorkingDirectory}");
@@ -104,7 +106,14 @@ namespace Andraste.Payload
 
                     Logger.Trace("Calling ApplicationReady");
                     _ready = true;
-                    ApplicationReady();
+                    try
+                    {
+                        ApplicationReady();
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Error(ex, "Exception in ApplicationReady");
+                    }
                 }
 
                 Thread.Sleep(100);
@@ -119,6 +128,7 @@ namespace Andraste.Payload
             _modLoader?.UnloadPlugins();
             Container.Unload();
             UnregisterExceptionHandlers();
+            LogManager.Flush();
             Environment.Exit(1);
         }
 
@@ -233,7 +243,8 @@ namespace Andraste.Payload
             var cfg = new LoggingConfiguration();
             var fileStdout = new FileTarget("fileStdout")
             {
-                FileName = "output.log", AutoFlush = true, DeleteOldFileOnStartup = true
+                FileName = "output.log", AutoFlush = true, DeleteOldFileOnStartup = true,
+                Layout = "${longdate}|${threadname}(${threadid})|${level:uppercase=true}|${logger}|${message}"
             };
 
             // TODO: Proper \r\n before exception, but only if there is an exception...
@@ -241,7 +252,7 @@ namespace Andraste.Payload
             {
                 FileName = "error.log", AutoFlush = false, DeleteOldFileOnStartup = true,
                 // Default from https://github.com/NLog/NLog/wiki/File-target#layout-options
-                Layout = "${longdate}|${level:uppercase=true}|${logger}|${message}${exception:format=ToString}"
+                Layout = "${longdate}|${threadname}(${threadid})|${level:uppercase=true}|${logger}|${message}${exception:format=ToString}"
             };
 
             cfg.AddRule(LogLevel.Trace, LogLevel.Warn, fileStdout);
