@@ -10,6 +10,10 @@
     <DefineConstants>NETFX</DefineConstants>
   </PropertyGroup>
 
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
   <PropertyGroup Condition="'$(TargetFramework)' == 'net48'">
       <DefineConstants>NETFX</DefineConstants>
   </PropertyGroup>
@@ -34,7 +38,7 @@
     </Reference>
     <!-- Important, because the native file is required at runtime -->
     <ContentWithTargetPath Include="ImGuiIntegration\cimgui.dll">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <TargetPath>cimgui.dll</TargetPath>
     </ContentWithTargetPath>
   </ItemGroup>
