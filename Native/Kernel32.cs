@@ -29,5 +29,7 @@ namespace Andraste.Payload.Native
         
         [DllImport("kernel32.dll")]
         public static extern bool VirtualProtect(IntPtr lpAddress, IntPtr dwSize, uint flNewProtect, out uint lpflOldProtect);
+
+        public delegate IntPtr DelegateFindFirstFileA(string lpFileName, IntPtr lpFindFileData);
     }
 }

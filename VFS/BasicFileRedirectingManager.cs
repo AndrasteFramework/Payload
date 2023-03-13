@@ -1,4 +1,6 @@
 ﻿using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
 using Andraste.Payload.Hooking;
 using Andraste.Payload.Native;
 using Andraste.Shared.Lifecycle;
@@ -21,30 +23,27 @@ namespace Andraste.Payload.VFS
         private readonly Logger _logger = LogManager.GetCurrentClassLogger(); 
         // TODO: What about "OpenFile" for older applications? What about CreateFileW?
         private Hook<Kernel32.Delegate_CreateFileA> _createFileHook;
-        private readonly ConcurrentDictionary<string, string> _fileMap;
-
-        public BasicFileRedirectingManager()
-        {
-            _fileMap = new ConcurrentDictionary<string, string>();
-        }
-
+        private Hook<Kernel32.DelegateFindFirstFileA> _findFirstFileHook;
+        private readonly ConcurrentDictionary<string, string> _fileMap = new ConcurrentDictionary<string, string>();
+        private readonly List<Hook> _hooks = new List<Hook>();
+        
         public bool Enabled
         {
-            get => _createFileHook.IsActive;
+            get => _hooks.All(hook => hook.IsActive);
             set
             {
                 if (value)
                 {
-                    _createFileHook.Activate();
+                    _hooks.ForEach(hook => hook.Activate());
                 }
                 else
                 {
-                    _createFileHook.Deactivate();
+                    _hooks.ForEach(hook => hook.Deactivate());
                 }
             }
         }
 
-        public bool Loaded => _createFileHook != null;
+        public bool Loaded => _hooks.Count > 0;
 
         public void Load()
         {
@@ -55,13 +54,33 @@ namespace Andraste.Payload.VFS
                 {
                     var queryFile = SanitizePath(name);
                     // Debug Logging
-                    // _logger.Info($"CreateFileA {name} ({queryFile}) => {_fileMap.ContainsKey(queryFile)}");
-                    // if (_fileMap.ContainsKey(queryFile)) _logger.Info($"{queryFile} redirected to {_fileMap[queryFile]}");
+                    // _logger.Trace($"CreateFileA {name} ({queryFile}) => {_fileMap.ContainsKey(queryFile)}");
+                    //if (_fileMap.ContainsKey(queryFile)) _logger.Trace($"{queryFile} redirected to {_fileMap[queryFile]}");
+                    //if (!_fileMap.ContainsKey(queryFile)) _logger.Trace($"{queryFile} could not be redirected");
                     var fileName = _fileMap.ContainsKey(queryFile) ? _fileMap[queryFile] : name;
-
                     return _createFileHook.Original(fileName, access, mode,attributes, disposition, andAttributes, file);
                 },
                 this);
+            _hooks.Add(_createFileHook);
+            
+            _findFirstFileHook = new Hook<Kernel32.DelegateFindFirstFileA>(
+                LocalHook.GetProcAddress("kernel32.dll", "FindFirstFileA"),
+                (name, data) =>
+                {
+                    if (name.Contains("*") || name.Contains("?"))
+                    {
+                        // Wildcards are not supported yet (we'd need to fake all search results and manage the handle)
+                        return _findFirstFileHook.Original(name, data);
+                    }
+                    
+                    // Games like Test Drive Unlimited (2006) are abusing FindFirstFile with an explicit file name to 
+                    // get all file attributes, such as the  file size.
+                    var queryFile = SanitizePath(name);
+                    var fileName = _fileMap.ContainsKey(queryFile) ? _fileMap[queryFile] : name;
+                    
+                    return _findFirstFileHook.Original(fileName, data);
+                }, this);
+            _hooks.Add(_findFirstFileHook);
         }
 
         private string SanitizePath(string fileName)
@@ -85,14 +104,13 @@ namespace Andraste.Payload.VFS
 
             // Replace forward slashes
             result = result.Replace('/', '\\');
-
             return result;
         }
 
         public void Unload()
         {
-            _createFileHook.Dispose();
-            _createFileHook = null;
+            _hooks.ForEach(hook => hook.Dispose());
+            _hooks.Clear();
         }
 
         [ApiVisibility(Visibility = ApiVisibilityAttribute.EVisibility.ModFrameworkInternalAPI)]
@@ -120,5 +138,19 @@ namespace Andraste.Payload.VFS
         {
             _fileMap[sourcePath.ToLower()] = destPath;
         }
+
+        #nullable enable
+        /// <summary>
+        /// Allows other file reading utilities inside Andraste to support VFS redirects by querying them.
+        /// </summary>
+        /// <param name="sourcePath">The game path</param>
+        /// <returns>The redirected mod path or null.</returns>
+        [ApiVisibility(Visibility = ApiVisibilityAttribute.EVisibility.ModFrameworkInternalAPI)]
+        public string? QueryMapping(string sourcePath)
+        {
+            var queryFile = SanitizePath(sourcePath);
+            return _fileMap.ContainsKey(queryFile) ? _fileMap[queryFile] : null;
+        }
+        #nullable restore
     }
 }
