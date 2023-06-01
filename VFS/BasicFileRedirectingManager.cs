@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using Andraste.Payload.Hooking;
 using Andraste.Payload.Native;
 using Andraste.Shared.Lifecycle;
@@ -24,9 +25,17 @@ namespace Andraste.Payload.VFS
         // TODO: What about "OpenFile" for older applications? What about CreateFileW?
         private Hook<Kernel32.Delegate_CreateFileA> _createFileHook;
         private Hook<Kernel32.DelegateFindFirstFileA> _findFirstFileHook;
+        private Hook<Kernel32.Delegate_CreateDirectoryA> _createDirectoryHook;
         private readonly ConcurrentDictionary<string, string> _fileMap = new ConcurrentDictionary<string, string>();
         private readonly List<Hook> _hooks = new List<Hook>();
         
+        private struct PrefixMap
+        {
+            public string Source { get; set; }
+            public string Dest { get; set; }
+        }
+        private readonly List<PrefixMap> _prefixMap = new List<PrefixMap>();
+
         public bool Enabled
         {
             get => _hooks.All(hook => hook.IsActive);
@@ -52,12 +61,14 @@ namespace Andraste.Payload.VFS
                 LocalHook.GetProcAddress("kernel32.dll", "CreateFileA"),
                 (name, access, mode, attributes, disposition, andAttributes, file) =>
                 {
-                    var queryFile = SanitizePath(name);
+                    name = ApplyPrefixMapping(SanitizePath(name));
+                    var queryFile = name;
                     // Debug Logging
                     // _logger.Trace($"CreateFileA {name} ({queryFile}) => {_fileMap.ContainsKey(queryFile)}");
                     //if (_fileMap.ContainsKey(queryFile)) _logger.Trace($"{queryFile} redirected to {_fileMap[queryFile]}");
                     //if (!_fileMap.ContainsKey(queryFile)) _logger.Trace($"{queryFile} could not be redirected");
                     var fileName = _fileMap.ContainsKey(queryFile) ? _fileMap[queryFile] : name;
+
                     return _createFileHook.Original(fileName, access, mode,attributes, disposition, andAttributes, file);
                 },
                 this);
@@ -67,6 +78,7 @@ namespace Andraste.Payload.VFS
                 LocalHook.GetProcAddress("kernel32.dll", "FindFirstFileA"),
                 (name, data) =>
                 {
+                    name = ApplyPrefixMapping(SanitizePath(name));
                     if (name.Contains("*") || name.Contains("?"))
                     {
                         // Wildcards are not supported yet (we'd need to fake all search results and manage the handle)
@@ -75,12 +87,27 @@ namespace Andraste.Payload.VFS
                     
                     // Games like Test Drive Unlimited (2006) are abusing FindFirstFile with an explicit file name to 
                     // get all file attributes, such as the  file size.
-                    var queryFile = SanitizePath(name);
+                    var queryFile = name;
                     var fileName = _fileMap.ContainsKey(queryFile) ? _fileMap[queryFile] : name;
-                    
+
                     return _findFirstFileHook.Original(fileName, data);
                 }, this);
             _hooks.Add(_findFirstFileHook);
+
+            _createDirectoryHook = new Hook<Kernel32.Delegate_CreateDirectoryA>(
+                LocalHook.GetProcAddress("kernel32.dll", "CreateDirectoryA"),
+                (name, attributes) =>
+                {
+                    //_logger.Trace("CreateDirectoryA hook with " + name);
+
+                    // TDU uses CreateDirectoryA to:
+                    // check if playersave/playersave2 directories exist
+                    // check if it's data directory in ProgramData exists
+                    var fileName = ApplyPrefixMapping(SanitizePath(name));
+
+                    return _createDirectoryHook.Original(fileName, attributes);
+                }, this);
+            _hooks.Add(_createDirectoryHook);
         }
 
         private string SanitizePath(string fileName)
@@ -106,6 +133,20 @@ namespace Andraste.Payload.VFS
             result = result.Replace('/', '\\');
             return result;
         }
+        private string ApplyPrefixMapping(string sourcePath)
+        {
+            //_logger.Trace("processing " + sourcePath);
+            foreach (var prefixmap in _prefixMap)
+            {
+                if (sourcePath.ToLower().StartsWith(prefixmap.Source))
+                {
+                    string ret = prefixmap.Dest + sourcePath.Substring(prefixmap.Source.Length);
+                    //_logger.Trace("redirecting " + sourcePath + " to " + ret);
+                    return ret;
+                }
+            }
+            return sourcePath;
+        }
 
         public void Unload()
         {
@@ -117,6 +158,7 @@ namespace Andraste.Payload.VFS
         public void ClearMappings()
         {
             _fileMap.Clear();
+            _prefixMap.Clear();
         }
 
         /// <summary>
@@ -137,6 +179,30 @@ namespace Andraste.Payload.VFS
         public void AddMapping(string sourcePath, string destPath)
         {
             _fileMap[sourcePath.ToLower()] = destPath;
+        }
+
+        /// <summary>
+        /// Adds a custom prefix redirect.<br />
+        /// Note that currently, this functionality is currently limited by the
+        /// use of the correct path separators (e.g. forward vs. backward slashes)<br />
+        /// All paths are treated as case invariant (windows)/lowercase and need to
+        /// match the target application (e.g. relative versus absolute path).<br />
+        /// <br />
+        /// This method should NOT be called by Mods, only by the modding framework.<br />
+        /// This is because conflicts cannot be handled and would overwrite each-other.<br />
+        /// Instead the Framework should handle this gracefully and use a priority value
+        /// or ask the user via the Host Application on a per-file basis.
+        /// </summary>
+        /// <param name="sourcePath">The path the target application searches for</param>
+        /// <param name="destPath">The path of the file that should be redirected to</param>
+        [ApiVisibility(Visibility = ApiVisibilityAttribute.EVisibility.ModFrameworkInternalAPI)]
+        public void AddPrefixMapping(string sourcePath, string destPath)
+        {
+            _prefixMap.Add(new PrefixMap
+            {
+                Source = sourcePath.ToLower(),
+                Dest = destPath
+            });
         }
 
         #nullable enable

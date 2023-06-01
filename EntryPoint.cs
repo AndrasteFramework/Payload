@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using System.Threading;
+using Andraste.Payload.ExtraVFS;
 using Andraste.Payload.ModManagement;
 using Andraste.Payload.Native;
 using Andraste.Shared.Lifecycle;
@@ -52,6 +53,7 @@ namespace Andraste.Payload
         protected readonly Dictionary<string, IFeatureParser> FeatureParser = new Dictionary<string, IFeatureParser>();
         public readonly ManagerContainer Container;
         private readonly ModLoader _modLoader;
+        private readonly ExtraVFSLoader _extraVFSLoader;
 
         protected EntryPoint(RemoteHooking.IContext context)
         {
@@ -59,6 +61,7 @@ namespace Andraste.Payload
             ModFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             Container = new ManagerContainer();
             _modLoader = new ModLoader(this);
+            _extraVFSLoader = new ExtraVFSLoader(this);
         }
 
         public virtual void Run(RemoteHooking.IContext context)
@@ -91,7 +94,9 @@ namespace Andraste.Payload
 
             Logger.Trace("Implementing Mods");
             ImplementMods();
-            
+
+            ImplementExtraVFS();
+
             Logger.Trace("Waking up the Application");
             RemoteHooking.WakeUpProcess();
             Logger.Trace("Calling Post-Wakeup");
@@ -189,7 +194,14 @@ namespace Andraste.Payload
             FeatureParser.Add("andraste.builtin.plugin", new PluginFeatureParser());
         }
         #endregion
-        
+
+        #region ExtraVFS
+        protected virtual void ImplementExtraVFS()
+        {
+            _extraVFSLoader.LoadExtraVFSFromJson(ModFolder);
+        }
+        #endregion
+
         #region Lifecycle
         /// <summary>
         /// This is called when Andraste has been loaded so far and the user
