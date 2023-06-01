@@ -1,11 +1,6 @@
-﻿using Andraste.Payload.ModManagement;
-using Andraste.Payload.VFS;
+﻿using Andraste.Payload.VFS;
 using System;
 using System.IO;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Text.Json;
 using NLog;
 
