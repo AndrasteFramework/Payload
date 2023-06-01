@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Threading;
 using Andraste.Payload.Hooking;
 using Andraste.Payload.Native;
 using Andraste.Shared.Lifecycle;
@@ -28,13 +29,8 @@ namespace Andraste.Payload.VFS
         private Hook<Kernel32.Delegate_CreateDirectoryA> _createDirectoryHook;
         private readonly ConcurrentDictionary<string, string> _fileMap = new ConcurrentDictionary<string, string>();
         private readonly List<Hook> _hooks = new List<Hook>();
-        
-        private struct PrefixMap
-        {
-            public string Source { get; set; }
-            public string Dest { get; set; }
-        }
-        private readonly List<PrefixMap> _prefixMap = new List<PrefixMap>();
+        private readonly SortedList<string, string> _prefixMap = new SortedList<string, string>();
+        private readonly Mutex _prefixMapEnumerationLock = new Mutex();
 
         public bool Enabled
         {
@@ -136,15 +132,18 @@ namespace Andraste.Payload.VFS
         private string ApplyPrefixMapping(string sourcePath)
         {
             //_logger.Trace("processing " + sourcePath);
-            foreach (var prefixmap in _prefixMap)
+            _prefixMapEnumerationLock.WaitOne(-1);
+            foreach (var entry in _prefixMap.Reverse())
             {
-                if (sourcePath.ToLower().StartsWith(prefixmap.Source))
+                if (sourcePath.ToLower().StartsWith(entry.Key))
                 {
-                    string ret = prefixmap.Dest + sourcePath.Substring(prefixmap.Source.Length);
+                    string ret = entry.Value + sourcePath.Substring(entry.Key.Length);
                     //_logger.Trace("redirecting " + sourcePath + " to " + ret);
+                    _prefixMapEnumerationLock.ReleaseMutex();
                     return ret;
                 }
             }
+            _prefixMapEnumerationLock.ReleaseMutex();
             return sourcePath;
         }
 
@@ -198,11 +197,14 @@ namespace Andraste.Payload.VFS
         [ApiVisibility(Visibility = ApiVisibilityAttribute.EVisibility.ModFrameworkInternalAPI)]
         public void AddPrefixMapping(string sourcePath, string destPath)
         {
-            _prefixMap.Add(new PrefixMap
+            _prefixMap.Add(sourcePath.ToLower(), destPath);
+            /*
+            _logger.Trace("printing current _prefixMap");
+            foreach(var entry in _prefixMap.Reverse())
             {
-                Source = sourcePath.ToLower(),
-                Dest = destPath
-            });
+                _logger.Trace(entry.Key + ", " + entry.Value);
+            }
+            */
         }
 
         #nullable enable
