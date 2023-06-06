@@ -32,6 +32,16 @@ namespace Andraste.Payload.Native
 
         public delegate bool Delegate_CreateDirectoryA(string lpFileName, IntPtr lpSecurityAttribute);
 
+        [DllImport("kernel32.dll", CharSet = CharSet.Ansi)]
+        public static extern bool DeleteFileA(string lpFileName);
+
+        public delegate bool Delegate_DeleteFileA(string lpFileName);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Ansi)]
+        public static extern bool RemoveDirectoryA(string lpFileName);
+
+        public delegate bool Delegate_RemoveDirectoryA(string lpFileName);
+
         [DllImport("kernel32.dll")]
         public static extern bool VirtualProtect(IntPtr lpAddress, IntPtr dwSize, uint flNewProtect, out uint lpflOldProtect);
 

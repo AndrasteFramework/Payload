@@ -1,6 +1,9 @@
-﻿using System.Collections.Concurrent;
+﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using Andraste.Payload.Hooking;
 using Andraste.Payload.Native;
@@ -26,6 +29,9 @@ namespace Andraste.Payload.VFS
         private Hook<Kernel32.Delegate_CreateFileA> _createFileHook;
         private Hook<Kernel32.DelegateFindFirstFileA> _findFirstFileHook;
         private Hook<Kernel32.Delegate_CreateDirectoryA> _createDirectoryHook;
+        private Hook<Kernel32.Delegate_DeleteFileA> _deleteFileHook;
+        private Hook<Kernel32.Delegate_RemoveDirectoryA> _removeDirectoryHook;
+        private Hook<Shell32.Delegate_SHFileOperationA> _shFileOperationHook;
         private readonly ConcurrentDictionary<string, string> _fileMap = new ConcurrentDictionary<string, string>();
         private readonly List<Hook> _hooks = new List<Hook>();
         private readonly SortedList<string, string> _prefixMap = new SortedList<string, string>();
@@ -103,6 +109,75 @@ namespace Andraste.Payload.VFS
                     return _createDirectoryHook.Original(fileName, attributes);
                 }, this);
             _hooks.Add(_createDirectoryHook);
+
+            _deleteFileHook = new Hook<Kernel32.Delegate_DeleteFileA>(
+                LocalHook.GetProcAddress("kernel32.dll", "DeleteFileA"),
+                (name) =>
+                {
+                    _logger.Trace("DeleteFileA with " + name);
+                    name = ApplyPrefixMapping(SanitizePath(name));
+                    var queryFile = name;
+                    var fileName = _fileMap.ContainsKey(queryFile) ? _fileMap[queryFile] : name;
+                    return _deleteFileHook.Original(fileName);
+                }, this);
+            _hooks.Add(_deleteFileHook);
+
+            _removeDirectoryHook = new Hook<Kernel32.Delegate_RemoveDirectoryA>(
+                LocalHook.GetProcAddress("kernel32.dll", "RemoveDirectoryA"),
+                (name) =>
+                {
+                    _logger.Trace("RemoveDirectoryA with " + name);
+                    var fileName = ApplyPrefixMapping(SanitizePath(name));
+                    return _removeDirectoryHook.Original(fileName);
+                }, this);
+            _hooks.Add(_removeDirectoryHook);
+
+            // hmm it seems that shell32.dll can remove files directly without using the above functions
+            _shFileOperationHook = new Hook<Shell32.Delegate_SHFileOperationA>(
+                LocalHook.GetProcAddress("shell32.dll", "SHFileOperationA"),
+                (lpFileOp) =>
+                {
+                    uint op = Extract32BitUintFromAddress(lpFileOp + 4);
+                    IntPtr from_ptr = Marshal.ReadIntPtr(lpFileOp + 8);
+                    IntPtr to_ptr = Marshal.ReadIntPtr(lpFileOp + 12);
+                    _logger.Trace("SHFileOperationA with op " + op);
+                    // TODO implement more ops maybe, if other games need them down the road
+                    // see https://learn.microsoft.com/en-us/windows/win32/api/shellapi/ns-shellapi-shfileopstructa
+                    // tdu uses this to recursively remove profile
+                    if (op == 3)
+                    {
+                        string from = Marshal.PtrToStringAnsi(from_ptr);
+                        from = ApplyPrefixMapping(SanitizePath(from));
+                        if (Directory.Exists(from))
+                        {
+                            _logger.Trace("SHFileOperationA recursively removing " + from);
+                            Directory.Delete(from, true);
+                        }
+                        else
+                        {
+                            from = _fileMap.ContainsKey(from) ? _fileMap[from] : from;
+                            if (File.Exists(from))
+                            {
+                                _logger.Trace("SHFileOperationA removing single file " + from);
+                                File.Delete(from);
+                            }
+                            else
+                            {
+                                _logger.Trace("SHFileOperationA cowardly not removing supposingly non-existing file " + from);
+                            }
+                        }
+                        return 0;
+                    }
+                    return _shFileOperationHook.Original(lpFileOp);
+                }, this);
+            _hooks.Add(_shFileOperationHook);
+        }
+
+        private uint Extract32BitUintFromAddress(IntPtr address)
+        {
+            var buf = new byte[4];
+            Marshal.Copy(address, buf, 0, 4);
+            return BitConverter.ToUInt32(buf, 0);
         }
 
         private string SanitizePath(string fileName)
