@@ -1,0 +1,33 @@
+name: Build Repository
+on: [push]
+ 
+jobs:
+  build:
+    runs-on: windows-latest
+ 
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    # Add  MSBuild to the PATH: https://github.com/microsoft/setup-msbuild
+    - name: Setup MSBuild.exe
+      uses: microsoft/setup-msbuild@v1.1
+
+    - name: Restore NuGet Packages
+      run: nuget restore Andraste.Payload.csproj
+ 
+    - name: Build project
+      run: msbuild Andraste.Payload.csproj /p:Configuration=Release /p:GeneratePackageOnBuild=true
+ 
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: DLL
+        path: bin\Release\net48\Andraste.Payload.dll
+    - name: Upload NuPkg
+      uses: actions/upload-artifact@v3
+      with:
+        name: NuGet
+        path: bin\Release\Andraste.Payload.*.nupkg
