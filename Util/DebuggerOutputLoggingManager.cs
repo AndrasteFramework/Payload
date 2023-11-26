@@ -10,6 +10,7 @@ namespace Andraste.Payload.Util
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private Hook<Kernel32.DelegateOutputDebugString> _odsAHook;
+        private Hook<Kernel32.DelegateOutputDebugStringW> _odsWHook;
         public Kernel32.DelegateOutputDebugString LoggingDelegate = DefaultLogger;
         public bool Swallow = false;
             
@@ -25,6 +26,17 @@ namespace Andraste.Payload.Util
                     }
                 }, this);
             _odsAHook.Activate();
+            
+            _odsWHook = new Hook<Kernel32.DelegateOutputDebugStringW>(
+                LocalHook.GetProcAddress("kernel32.dll", "OutputDebugStringW"), str =>
+                {
+                    LoggingDelegate.Invoke(str);
+                    if (!Swallow)
+                    {
+                        _odsWHook.Original(str);
+                    }
+                }, this);
+            _odsWHook.Activate();
         }
 
         public bool Enabled
@@ -35,10 +47,12 @@ namespace Andraste.Payload.Util
                 if (value)
                 {
                     _odsAHook.Activate();
+                    _odsWHook.Activate();
                 }
                 else
                 {
                     _odsAHook.Deactivate();
+                    _odsWHook.Deactivate();
                 }
             }
         }

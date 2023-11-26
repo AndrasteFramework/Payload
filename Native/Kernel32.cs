@@ -14,6 +14,7 @@ namespace Andraste.Payload.Native
 
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
         public static extern void OutputDebugStringW(string str);
+        public delegate void DelegateOutputDebugStringW([MarshalAs(UnmanagedType.LPWStr)] string str);
         
         [DllImport("kernel32.dll")]
         public static extern bool IsDebuggerPresent();
