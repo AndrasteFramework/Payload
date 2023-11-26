@@ -1,1 +1,0 @@
-﻿These DLLs are precompiled versions from our custom fork of EasyHook at https://github.com/AndrasteFramework/EasyHook/tree/andraste
