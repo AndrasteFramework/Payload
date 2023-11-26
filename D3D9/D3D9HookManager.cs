@@ -16,7 +16,7 @@ namespace Andraste.Payload.D3D9
     /// </summary>
     public class D3D9HookManager : IManager
     {
-        private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+        private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         private readonly IntPtr WindowHandle;
 
         protected Hook<Direct3D9Device_BeginSceneDelegate> Direct3DDevice_BeginSceneHook;
@@ -76,15 +76,15 @@ namespace Andraste.Payload.D3D9
             // First we need to determine the function address for IDirect3DDevice9
             Id3dDeviceFunctionAddresses = new List<IntPtr>();
             //id3dDeviceExFunctionAddresses = new List<IntPtr>();
-            logger.Debug("D3D9Hook: Before device creation");
-            using (Direct3D d3d = new Direct3D())
+            Logger.Debug("D3D9Hook: Before device creation");
+            using (var d3d = new Direct3D())
             {
                 using (var device = new Device(d3d, 0, DeviceType.NullReference, IntPtr.Zero,
                            CreateFlags.HardwareVertexProcessing,
                            new PresentParameters
                                { BackBufferWidth = 1, BackBufferHeight = 1, DeviceWindowHandle = WindowHandle }))
                 {
-                    logger.Debug("D3D9Hook: Device created");
+                    Logger.Debug("D3D9Hook: Device created");
                     Id3dDeviceFunctionAddresses.AddRange(Functions.GetVTblAddresses(device.NativePointer,
                         Functions.D3D9_DEVICE_METHOD_COUNT));
 
@@ -92,17 +92,17 @@ namespace Andraste.Payload.D3D9
                     {
                         using (var d3dEx = new Direct3DEx())
                         {
-                            logger.Debug("D3D9Hook: Direct3DEx...");
+                            Logger.Debug("D3D9Hook: Direct3DEx...");
 
-                            using (var deviceEx = new DeviceEx(d3dEx, 0, DeviceType.NullReference, IntPtr.Zero,
-                                       CreateFlags.HardwareVertexProcessing,
+                            using (var deviceEx = new DeviceEx(d3dEx, 0, DeviceType.NullReference, 
+                                       IntPtr.Zero, CreateFlags.HardwareVertexProcessing,
                                        new PresentParameters
                                        {
                                            BackBufferWidth = 1, BackBufferHeight = 1, DeviceWindowHandle = WindowHandle
                                        },
                                        new DisplayModeEx { Width = 800, Height = 600 }))
                             {
-                                logger.Debug("D3D9Hook: DeviceEx created - PresentEx supported");
+                                Logger.Debug("D3D9Hook: DeviceEx created - PresentEx supported");
                                 Id3dDeviceFunctionAddresses.AddRange(Functions.GetVTblAddresses(deviceEx.NativePointer,
                                     Functions.D3D9_DEVICE_METHOD_COUNT, Functions.D3D9Ex_DEVICE_METHOD_COUNT));
                                 _supportsDirect3D9Ex = true;
@@ -175,7 +175,7 @@ namespace Andraste.Payload.D3D9
         private unsafe int PresentExHook(IntPtr devicePtr, Rectangle* pSourceRect, Rectangle* pDestRect,
             IntPtr hDestWindowOverride, IntPtr pDirtyRegion, Present dwFlags)
         {
-            logger.Trace("PresentEx called");
+            Logger.Trace("PresentEx called");
 
             try
             {
@@ -199,7 +199,7 @@ namespace Andraste.Payload.D3D9
             }
             catch (Exception ex)
             {
-                logger.Warn(ex, "Exception caught in PresentExHook Event Handler");
+                Logger.Warn(ex, "Exception caught in PresentExHook Event Handler");
             }
 
             Device ??= (Device)devicePtr;
@@ -212,7 +212,7 @@ namespace Andraste.Payload.D3D9
             IntPtr hDestWindowOverride, IntPtr pDirtyRegion)
         {
             // Mumble uses StateBlocks. ((Device)devicePtr).BeginStateBlock();
-            //logger.Trace("Present called");
+            //Logger.Trace("Present called");
 
             try
             {
@@ -236,7 +236,7 @@ namespace Andraste.Payload.D3D9
             }
             catch (Exception ex)
             {
-                logger.Warn(ex, "Exception caught in PresentHook Event Handler");
+                Logger.Warn(ex, "Exception caught in PresentHook Event Handler");
             }
 
             Device ??= (Device) devicePtr;
@@ -250,12 +250,12 @@ namespace Andraste.Payload.D3D9
             // 0x88760868
             if (result == ResultCode.DeviceLost.Code)
             {
-                //logger.Warn($"Call to Present failed with code: {result} | 0x{result:X}");
-                logger.Error("GPU device has been lost");
+                //Logger.Warn($"Call to Present failed with code: {result} | 0x{result:X}");
+                Logger.Error("GPU device has been lost");
                 var coopResult = Device.TestCooperativeLevel();
-                logger.Warn($"Device.TestCooperativeLevel = {coopResult:X}");
+                Logger.Warn($"Device.TestCooperativeLevel = {coopResult:X}");
                 //Kernel32.DebugBreak();
-                //logger.Warn("Attempting device reset...");
+                //Logger.Warn("Attempting device reset...");
                 //Device.Reset();
             }
             return result;
@@ -263,7 +263,7 @@ namespace Andraste.Payload.D3D9
 
         private int ResetHook(IntPtr devicePtr, ref PresentParameters presentParameters)
         {
-            logger.Trace("Reset called");
+            Logger.Trace("Reset called");
             try
             {
                 // https://codeblog.jonskeet.uk/2015/01/30/clean-event-handlers-invocation-with-c-6/
@@ -271,28 +271,28 @@ namespace Andraste.Payload.D3D9
             }
             catch (Exception ex)
             {
-                logger.Warn(ex, "Exception caught in ResetHook Event Handler");
+                Logger.Warn(ex, "Exception caught in ResetHook Event Handler");
             }
 
             Device ??= (Device)devicePtr;
 
             var result = Direct3DDevice_ResetHook.Original(devicePtr, ref presentParameters);
             hasBeenReset = true;
-            logger.Trace($"ResetHook Original Result = {result:X}");
-            logger.Trace($"After reset, Device.TestCooperativeLevel() = {Device.TestCooperativeLevel()}");
+            Logger.Trace($"ResetHook Original Result = {result:X}");
+            Logger.Trace($"After reset, Device.TestCooperativeLevel() = {Device.TestCooperativeLevel()}");
             return result;
         }
 
         private int BeginSceneHook(IntPtr devicePtr)
         {
             var result = Direct3DDevice_BeginSceneHook.Original(devicePtr);
-            //logger.Trace($"BeginScene returned {result}");
+            //Logger.Trace($"BeginScene returned {result}");
             return result;
         }
 
         private int EndSceneHook(IntPtr devicePtr)
         {
-            //logger.Trace("EndScene called");
+            //Logger.Trace("EndScene called");
             try
             {
                 // https://codeblog.jonskeet.uk/2015/01/30/clean-event-handlers-invocation-with-c-6/
@@ -300,13 +300,13 @@ namespace Andraste.Payload.D3D9
             }
             catch (Exception ex)
             {
-                logger.Warn(ex, "Exception caught in EndScene Event Handler");
+                Logger.Warn(ex, "Exception caught in EndScene Event Handler");
             }
 
             Device ??= (Device)devicePtr;
 
             var result = Direct3DDevice_EndSceneHook.Original(devicePtr);
-            //logger.Trace($"EndScene returned {result}");
+            //Logger.Trace($"EndScene returned {result}");
             return result;
         }
 
@@ -318,7 +318,7 @@ namespace Andraste.Payload.D3D9
         {
             while (Device == null)
             {
-                logger.Trace("Waiting for Device Presence");
+                Logger.Trace("Waiting for Device Presence");
                 Thread.Sleep(250);
             }
         }
