@@ -32,7 +32,9 @@ namespace Andraste.Payload
         /// This can be different from the Working Directory, which is the
         /// folder where the Launcher/Host Application resides.
         /// </summary>
-        public static string ModFolder;
+        public static string FrameworkFolder;
+
+        public static string ProfileFolder;
 
         public static string HostFolder =>
             throw new NotImplementedException("TODO: NLog can somehow determine the path of the Host Application.");
@@ -53,15 +55,16 @@ namespace Andraste.Payload
         public readonly ManagerContainer Container;
         private readonly ModLoader _modLoader;
 
-        protected EntryPoint(RemoteHooking.IContext context)
+        protected EntryPoint(RemoteHooking.IContext context, string profileFolder)
         {
             GameFolder = Directory.GetCurrentDirectory();
-            ModFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            FrameworkFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            ProfileFolder = profileFolder;
             Container = new ManagerContainer();
             _modLoader = new ModLoader(this);
         }
 
-        public virtual void Run(RemoteHooking.IContext context)
+        public virtual void Run(RemoteHooking.IContext context, string profileFolder)
         {
             if (ShouldSetupExceptionHandlers)
             {
@@ -76,7 +79,7 @@ namespace Andraste.Payload
             Thread.CurrentThread.Name = "Andraste Main-Thread";
 
             Logger.Info($"Game Directory: {GameFolder}");
-            Logger.Info($"Mod Directory: {ModFolder}");
+            Logger.Info($"Mod Directory: {ProfileFolder}");
             //logger.Info($"Host Directory: {Process.GetCurrentProcess().StartInfo.WorkingDirectory}");
             Logger.Info($".NET Plattform: {RuntimeInformation.FrameworkDescription}"); // .net 4.7.1+ 
 
@@ -180,7 +183,7 @@ namespace Andraste.Payload
 
         protected virtual void DiscoverMods()
         {
-            _modLoader.EnabledMods = _modLoader.DiscoverMods(ModFolder);
+            _modLoader.EnabledMods = _modLoader.DiscoverMods(ProfileFolder);
         }
 
         protected virtual void LoadFeatureParsers()
@@ -230,14 +233,14 @@ namespace Andraste.Payload
         {
             // Workaround: For some reason, NLog is only flushing/deleting the file, once you log something to it,
             // so we're going to force-delete the files for now.
-            if (File.Exists(Path.Combine(ModFolder, "output.log")))
+            if (File.Exists(Path.Combine(ProfileFolder, "output.log")))
             {
-                File.Delete(Path.Combine(ModFolder, "output.log"));
+                File.Delete(Path.Combine(ProfileFolder, "output.log"));
             }
             
-            if (File.Exists(Path.Combine(ModFolder, "error.log")))
+            if (File.Exists(Path.Combine(ProfileFolder, "error.log")))
             {
-                File.Delete(Path.Combine(ModFolder, "error.log"));
+                File.Delete(Path.Combine(ProfileFolder, "error.log"));
             }
             
             var cfg = new LoggingConfiguration();
