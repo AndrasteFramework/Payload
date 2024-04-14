@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.Threading;
 using Andraste.Payload.Hooking;
@@ -14,6 +15,7 @@ namespace Andraste.Payload.D3D9
     /// Hook various DirectX 9 Functions and provide safe event handlers
     /// as well as a way to manually hook other functions.
     /// </summary>
+    [SuppressMessage("ReSharper", "InconsistentNaming")]
     public class D3D9HookManager : IManager
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();

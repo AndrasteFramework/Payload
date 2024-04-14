@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.InteropServices;
+using System.Threading;
 using Andraste.Shared.Lifecycle;
 using SharpDX.Direct3D9;
 
@@ -23,26 +25,26 @@ namespace Andraste.Payload.D3D9
         public float TargetFPS { get; set; } = 60f;
 
         private float MsPerFrame => 1000f / TargetFPS;
-        
-        /// <summary>
-        /// The timestamp since the last Present()/PresentEx()/EndScene() call
-        /// </summary>
-        DateTime _lastFrame;
 
-        public D3D9FrameLimiter(D3D9HookManager d3d9)
-        {
-            _d3d9 = d3d9;
-        }
+        /// <summary>
+        /// The time since the last Present()/PresentEx()/EndScene() call
+        /// </summary>
+        private readonly Stopwatch _stopwatch;
 
         [DllImport("winmm.dll")]
         private static extern uint timeBeginPeriod(uint uPeriod);
         [DllImport("winmm.dll")]
         private static extern uint timeEndPeriod(uint uPeriod);
+        
+        public D3D9FrameLimiter(D3D9HookManager d3d9)
+        {
+            _stopwatch = new Stopwatch();
+            _d3d9 = d3d9;
+        }
 
         // ReSharper disable once InconsistentNaming
-        public D3D9FrameLimiter(D3D9HookManager d3d9, float targetFPS)
+        public D3D9FrameLimiter(D3D9HookManager d3d9, float targetFPS) : this(d3d9)
         {
-            _d3d9 = d3d9;
             TargetFPS = targetFPS;
         }
 
@@ -50,8 +52,8 @@ namespace Andraste.Payload.D3D9
         {
             // TODO: Query min timer resolution which may not be 1
             timeBeginPeriod(1);
-            _lastFrame = DateTime.Now;
-            // TODO: Support different callbacks: Present, PresentEx and EndScene
+            _stopwatch.Start();
+            // TODO: Support different callbacks: Present, PresentEx and EndScene [actually EndScene is probably not right]
             _d3d9.Present += D3d9OnPresent;
             Loaded = true;
         }
@@ -70,12 +72,13 @@ namespace Andraste.Payload.D3D9
                 return;
             }
 
-            var ms = (DateTime.Now - _lastFrame).TotalMilliseconds;
-            if (ms < MsPerFrame)
+            var sw = new SpinWait();
+            while (_stopwatch.Elapsed.TotalMilliseconds < MsPerFrame)
             {
-                System.Threading.Thread.Sleep((int)(MsPerFrame - ms));
+                sw.SpinOnce();
             }
-            _lastFrame = DateTime.Now;
+            
+            _stopwatch.Restart();
         }
     }
 }
