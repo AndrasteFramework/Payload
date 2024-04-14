@@ -27,6 +27,8 @@ namespace Andraste.Payload
         // TODO: Move into dedicated class
         public static string GameFolder;
 
+        public static string GameExecutable;
+
         /// <summary>
         /// The folder where the resulting assembly dll is stored.
         /// This can be different from the Working Directory, which is the
@@ -35,9 +37,6 @@ namespace Andraste.Payload
         public static string FrameworkFolder;
 
         public static string ProfileFolder;
-
-        public static string HostFolder =>
-            throw new NotImplementedException("TODO: NLog can somehow determine the path of the Host Application.");
 
         public abstract string FrameworkName { get; }
         public abstract string Version { get; }
@@ -58,6 +57,7 @@ namespace Andraste.Payload
         protected EntryPoint(RemoteHooking.IContext context, string profileFolder)
         {
             GameFolder = Directory.GetCurrentDirectory();
+            GameExecutable = Process.GetCurrentProcess().MainModule!.FileName;
             FrameworkFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             ProfileFolder = profileFolder;
             Container = new ManagerContainer();
@@ -78,9 +78,10 @@ namespace Andraste.Payload
 
             Thread.CurrentThread.Name = "Andraste Main-Thread";
 
+            Logger.Info($"Game Executable: {GameExecutable}");
             Logger.Info($"Game Directory: {GameFolder}");
-            Logger.Info($"Mod Directory: {ProfileFolder}");
-            //logger.Info($"Host Directory: {Process.GetCurrentProcess().StartInfo.WorkingDirectory}");
+            Logger.Info($"Profile Directory: {ProfileFolder}");
+            Logger.Info($"Framework Directory: {FrameworkFolder}");
             Logger.Info($".NET Plattform: {RuntimeInformation.FrameworkDescription}"); // .net 4.7.1+ 
 
             Logger.Trace("Loading Mods");
