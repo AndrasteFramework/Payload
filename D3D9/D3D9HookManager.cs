@@ -82,8 +82,7 @@ namespace Andraste.Payload.D3D9
             using (var d3d = new Direct3D())
             {
                 using (var device = new Device(d3d, 0, DeviceType.NullReference, IntPtr.Zero,
-                           CreateFlags.HardwareVertexProcessing,
-                           new PresentParameters
+                           CreateFlags.HardwareVertexProcessing, new PresentParameters 
                                { BackBufferWidth = 1, BackBufferHeight = 1, DeviceWindowHandle = WindowHandle }))
                 {
                     Logger.Debug("D3D9Hook: Device created");

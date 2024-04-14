@@ -151,6 +151,27 @@ namespace Andraste.Payload.D3D9
         GetDisplayModeEx = 133,
     }
 
+    public enum IDirect3DVertexBuffer9FunctionOrdinals : short
+    {
+        QueryInterface = 0,
+        AddRef = 1,
+        Release = 2,
+        GetDevice = 3,
+        SetPrivateData = 4,
+        GetPrivateData = 5,
+        FreePrivateData = 6,
+        SetPriority = 7,
+        GetPriority = 8,
+        PreLoad = 9,
+        GetType = 10,
+        Lock = 11,
+        Unlock = 12, 
+        GetDesc = 13,
+    }
+    
+    // Calling convention: DX9 methods are COM (combaseapi.h) and as such, since C-abi has no __thiscall, they are
+    // strictly stdcall and by-convention push "this" on the stack.
+
     [UnmanagedFunctionPointer(CallingConvention.StdCall, CharSet = CharSet.Unicode, SetLastError = true)]
     public delegate int Direct3D9Device_BeginSceneDelegate(IntPtr device);
 
@@ -178,11 +199,36 @@ namespace Andraste.Payload.D3D9
     [UnmanagedFunctionPointer(CallingConvention.StdCall, CharSet = CharSet.Unicode, SetLastError = true)]
     public unsafe delegate int Direct3D9DeviceEx_PresentExDelegate(IntPtr devicePtr, Rectangle* pSourceRect,
         Rectangle* pDestRect, IntPtr hDestWindowOverride, IntPtr pDirtyRegion, Present dwFlags);
+    
+    [UnmanagedFunctionPointer(CallingConvention.StdCall, CharSet = CharSet.Unicode, SetLastError = true)]
+    public unsafe delegate int Direct3D9Device_CreateShader(IntPtr devicePtr, IntPtr pFunction, IntPtr ppShader);
+    
+    [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+    public unsafe delegate int Direct3D9Device_CreateTexture(IntPtr devicePtr, uint width, uint height, uint levels, uint usage, 
+        uint format, uint pool, IntPtr *ppTexture, IntPtr pSharedHandle);
+
+    [UnmanagedFunctionPointer(CallingConvention.StdCall, CharSet = CharSet.Unicode, SetLastError = true)]
+    public delegate int Direct3D9Device_SetShader(IntPtr devicePtr, IntPtr pShader);
+    
+    [UnmanagedFunctionPointer(CallingConvention.StdCall, CharSet = CharSet.Unicode, SetLastError = true)]
+    public delegate int Direct3D9Device_DrawIndexedPrimitive(IntPtr devicePtr, uint primitiveType, int baseVertexIndex, 
+        uint minVertexIndex, uint numVertices, uint startIndex, uint primCount);
+    
+    [UnmanagedFunctionPointer(CallingConvention.StdCall, CharSet = CharSet.Unicode, SetLastError = true)]
+    public delegate int Direct3DVertexBuffer9_Lock(IntPtr pBuffer, uint offsetToLock, uint sizeToLock, IntPtr ppbData, int flags);
+
+    [UnmanagedFunctionPointer(CallingConvention.StdCall, CharSet = CharSet.Unicode, SetLastError = true)]
+    public delegate int Direct3DVertexBuffer9_Unlock(IntPtr pBuffer);
+
+    [UnmanagedFunctionPointer(CallingConvention.StdCall, CharSet = CharSet.Unicode, SetLastError = true)]
+    public delegate int Direct3D9Device_SetIndices(IntPtr devicePtr, IntPtr pIndexBuffer);
 
     public static class Functions
     {
         public const int D3D9_DEVICE_METHOD_COUNT = 119;
         public const int D3D9Ex_DEVICE_METHOD_COUNT = 15;
+        public const int D3D9_METHOD_COUNT = 17;
+        public const int D3D9_VERTEX_BUFFER_METHOD_COUNT = 14;
 
         public static IntPtr[] GetVTblAddresses(IntPtr pointer, int numberOfMethods)
         {
