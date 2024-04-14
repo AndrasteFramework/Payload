@@ -169,9 +169,9 @@ namespace Andraste.Payload
                 var conf = mods.ModInformation.Configurations[mods.ModSetting.ActiveConfiguration];
                 foreach (var feature in conf.Features.Keys)
                 {
-                    if (FeatureParser.ContainsKey(feature))
+                    if (FeatureParser.TryGetValue(feature, out var parser))
                     {
-                        var parsed = FeatureParser[feature].Parse(conf.Features[feature]);
+                        var parsed = parser.Parse(conf.Features[feature]);
                         conf._parsedFeatures.Add(feature, parsed);
                     }
                     else
@@ -234,27 +234,30 @@ namespace Andraste.Payload
         {
             // Workaround: For some reason, NLog is only flushing/deleting the file, once you log something to it,
             // so we're going to force-delete the files for now.
-            if (File.Exists(Path.Combine(ProfileFolder, "output.log")))
+            var outputLog = Path.Combine(ProfileFolder, "output.log");
+            var errorLog = Path.Combine(ProfileFolder, "error.log");
+            
+            if (File.Exists(outputLog))
             {
-                File.Delete(Path.Combine(ProfileFolder, "output.log"));
+                File.Delete(outputLog);
             }
             
-            if (File.Exists(Path.Combine(ProfileFolder, "error.log")))
+            if (File.Exists(errorLog))
             {
-                File.Delete(Path.Combine(ProfileFolder, "error.log"));
+                File.Delete(errorLog);
             }
             
             var cfg = new LoggingConfiguration();
             var fileStdout = new FileTarget("fileStdout")
             {
-                FileName = "output.log", AutoFlush = true, DeleteOldFileOnStartup = true,
+                FileName = outputLog, AutoFlush = true, DeleteOldFileOnStartup = true,
                 Layout = "${longdate}|${threadname}(${threadid})|${level:uppercase=true}|${logger}|${message}"
             };
 
             // TODO: Proper \r\n before exception, but only if there is an exception...
             var fileErr = new FileTarget("fileErr")
             {
-                FileName = "error.log", AutoFlush = false, DeleteOldFileOnStartup = true,
+                FileName = errorLog, AutoFlush = false, DeleteOldFileOnStartup = true,
                 // Default from https://github.com/NLog/NLog/wiki/File-target#layout-options
                 Layout = "${longdate}|${threadname}(${threadid})|${level:uppercase=true}|${logger}|${message}${exception:format=ToString}"
             };
