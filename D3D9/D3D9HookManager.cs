@@ -29,6 +29,8 @@ namespace Andraste.Payload.D3D9
 
         protected List<Hook> Hooks = new List<Hook>();
         public List<IntPtr> Id3dDeviceFunctionAddresses = new List<IntPtr>();
+        public readonly List<IntPtr> Id3dVertexBufferFunctionAddresses = new List<IntPtr>();
+        public readonly List<IntPtr> Id3dIndexBufferFunctionAddresses = new List<IntPtr>();
         //List<IntPtr> id3dDeviceExFunctionAddresses = new List<IntPtr>();
         private bool _supportsDirect3D9Ex;
         public Device Device;
@@ -114,6 +116,17 @@ namespace Andraste.Payload.D3D9
                     {
                         _supportsDirect3D9Ex = false;
                     }
+
+                    var vb = new VertexBuffer(device, 1, Usage.Dynamic, VertexFormat.None, Pool.Default);
+                    var ib = new IndexBuffer(device, 2, Usage.Dynamic, Pool.Default, true);
+                    
+                    // We need a vertex buffer so we can get it's native buffer.
+                    Id3dVertexBufferFunctionAddresses.AddRange(Functions.GetVTblAddresses(vb.NativePointer,
+                        Functions.D3D9_VERTEX_BUFFER_METHOD_COUNT));
+                    
+                    // We need a index buffer so we can get it's native buffer.
+                    Id3dIndexBufferFunctionAddresses.AddRange(Functions.GetVTblAddresses(ib.NativePointer,
+                        Functions.D3D9_VERTEX_BUFFER_METHOD_COUNT));
 
                     Direct3DDevice_BeginSceneHook = new Hook<Direct3D9Device_BeginSceneDelegate>(
                         Id3dDeviceFunctionAddresses[(int)Direct3DDevice9FunctionOrdinals.BeginScene],
