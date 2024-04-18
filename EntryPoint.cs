@@ -24,6 +24,7 @@ namespace Andraste.Payload
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
 
+        // TODO: Make non-static once we have a reasonable way to access EntryPoint non-static.
         // TODO: Move into dedicated class
         public static string GameFolder;
 
@@ -36,7 +37,7 @@ namespace Andraste.Payload
         /// </summary>
         public static string FrameworkFolder;
 
-        public static string ProfileFolder;
+        public string ProfileFolder;
 
         public abstract string FrameworkName { get; }
         public abstract string Version { get; }
@@ -89,6 +90,7 @@ namespace Andraste.Payload
 
             Logger.Trace("Internal Initialization done, calling Pre-Wakeup");
             PreWakeup();
+            _modLoader.EmitGenericEvent(EGenericEvent.EPreWakeup);
             
             Logger.Trace("Loading the Managers");
             Container.Load();
@@ -100,6 +102,7 @@ namespace Andraste.Payload
             RemoteHooking.WakeUpProcess();
             Logger.Trace("Calling Post-Wakeup");
             PostWakeup();
+            _modLoader.EmitGenericEvent(EGenericEvent.EPostWakeup);
 
             while (IsRunning)
             {
@@ -118,6 +121,7 @@ namespace Andraste.Payload
                     {
                         Logger.Error(ex, "Exception in ApplicationReady");
                     }
+                    _modLoader.EmitGenericEvent(EGenericEvent.EApplicationReady);
                 }
 
                 Thread.Sleep(100);
@@ -215,7 +219,7 @@ namespace Andraste.Payload
 
         /// <summary>
         /// This is called when the Application has been loaded and created
-        /// it's Main Window.
+        /// its Main Window.
         ///
         /// This happens after Pre/PostWakeup and is intended to initialize
         /// custom UI or accessing game functions (add your own, more specific

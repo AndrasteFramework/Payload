@@ -15,10 +15,10 @@ namespace Andraste.Payload.ModManagement
 {
     public class ModLoader
     {
-        private EntryPoint _entryPoint;
+        private readonly EntryPoint _entryPoint;
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
         public List<EnabledMod> EnabledMods = new List<EnabledMod>();
-        public Dictionary<EnabledMod, IPlugin> Plugins = new Dictionary<EnabledMod, IPlugin>();
+        public readonly Dictionary<EnabledMod, IPlugin> Plugins = new Dictionary<EnabledMod, IPlugin>();
         
         public ModLoader(EntryPoint entryPoint)
         {
@@ -135,11 +135,11 @@ namespace Andraste.Payload.ModManagement
                 {
                     var assembly = Assembly.LoadFile(dll);
                     var pluginType = assembly.GetType(feature.PluginClassName, false, true);
-
                     if (pluginType == null)
                     {
                         Logger.Warn($"Cannot load the plugin of {mod.ModInformation.Slug}, " +
-                                    $"because the type {feature.PluginClassName} does not exist");
+                                    $"because the type {feature.PluginClassName} does not exist " +
+                                    "(or another error has happened)");
                         continue;
                     }
 
@@ -184,6 +184,21 @@ namespace Andraste.Payload.ModManagement
             foreach (var plugin in Plugins.Values.Where(plugin => plugin.Loaded))
             {
                 plugin.Unload();
+            }
+        }
+
+        public void EmitGenericEvent(EGenericEvent genericEvent)
+        {
+            foreach (var plugin in Plugins.Values.Where(plugin => plugin.Enabled && plugin.Loaded))
+            {
+                try
+                {
+                    plugin.OnGenericEvent(genericEvent);
+                }
+                catch (Exception exception)
+                {
+                    Logger.Warn(exception, "Exception during generic event handling of a plugin");
+                }
             }
         }
     }

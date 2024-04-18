@@ -36,5 +36,11 @@ namespace Andraste.Payload.ModManagement
         public abstract bool Enabled { get; set; }
         protected abstract void PluginLoad();
         protected abstract void PluginUnload();
+
+        /// <inheritdoc cref="IPlugin.OnGenericEvent"/>
+        public virtual void OnGenericEvent(EGenericEvent genericEvent)
+        {
+            // Do nothing
+        }
     }
 }
