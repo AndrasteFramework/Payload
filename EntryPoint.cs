@@ -37,7 +37,7 @@ namespace Andraste.Payload
         /// </summary>
         public static string FrameworkFolder;
 
-        public string ProfileFolder;
+        public static string ProfileFolder;
 
         public abstract string FrameworkName { get; }
         public abstract string Version { get; }
@@ -288,34 +288,13 @@ namespace Andraste.Payload
         {
             // TODO: refactor ProcessExit, so that it's always hooked and can properly do the destruction
             AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
-            AppDomain.CurrentDomain.FirstChanceException += CurrentDomain_FirstChanceException;
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
         }
 
         protected void UnregisterExceptionHandlers()
         {
             AppDomain.CurrentDomain.ProcessExit -= CurrentDomain_ProcessExit;
-            AppDomain.CurrentDomain.FirstChanceException -= CurrentDomain_FirstChanceException;
             AppDomain.CurrentDomain.UnhandledException -= CurrentDomain_UnhandledException;
-        }
-
-        protected virtual void CurrentDomain_FirstChanceException(object sender,
-            FirstChanceExceptionEventArgs e)
-        {
-            Logger.Fatal(e.Exception, $"Got uncaught FirstChance Exception{Environment.NewLine}");
-            var text = "An Uncaught Exception has happened and the game will now crash!\n" +
-                       $"This is definitely caused by Andraste / {FrameworkName}!\n\n" +
-                       $"---------------------\n{e.Exception}";
-
-            var mwh = Process.GetCurrentProcess().MainWindowHandle;
-            const uint MB_OK = 0;
-            const uint MB_ICONERROR = 0x00000010U;
-            User32.MessageBox(mwh != IntPtr.Zero ? mwh : IntPtr.Zero, text, "Uncaught Exception", MB_OK | MB_ICONERROR);
-
-            // TODO: It could still be handled?
-            IsRunning = false;
-            Shutdown(); // TODO: Is this the best way of doing it? UnhandledException Handler is not called afterwards...
-            // @TODO: We should maybe just unload all hooks so the game can continue running
         }
 
         protected virtual void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
