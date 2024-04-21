@@ -3,12 +3,15 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using NLog;
+using SharpDX.Direct3D9;
 
 namespace Andraste.Payload.D3D9
 {
     // Idea: fill the known-bad list with all shaders that have been happening before the crash. Then gradually
     // always no-op half of them and expect the game to crash. When it does, note the half that hasn't been no-opped.
     // Restart the game.
+    //
+    // Another thing you can do is tracking vertex and index buffers and dumping them on crash
     public class DriverCrashDetector
     {
         private static readonly Logger Logger = LogManager.GetCurrentClassLogger();
@@ -127,6 +130,11 @@ namespace Andraste.Payload.D3D9
             }
         }
 
+        /// <summary>
+        /// Compare the hash of the vertex shader against known good and bad shaders.
+        /// </summary>
+        /// <param name="shaderHash">The hash of the shader bytecode</param>
+        /// <returns>Whether the vertex shader should be replaced with a dummy shader</returns>
         public bool OnCreateVertexShader(string shaderHash)
         {
             if (_debugPixelShaders)
@@ -150,6 +158,11 @@ namespace Andraste.Payload.D3D9
             return false; // Shader that has been recently dropped out of the bad shaders (or first run)
         }
 
+        /// <summary>
+        /// Compare the hash of the pixel shader against known good and bad shaders.
+        /// </summary>
+        /// <param name="shaderHash">The hash of the shader bytecode</param>
+        /// <returns>Whether the pixel shader should be replaced with a dummy shader</returns>
         public bool OnCreatePixelShader(string shaderHash)
         {
             if (!_debugPixelShaders)
@@ -171,6 +184,14 @@ namespace Andraste.Payload.D3D9
             }
 
             return false; // Shader that has been recently dropped out of the bad shaders (or first run)
+        }
+
+        public void OnPresent(int result)
+        {
+            if (result == ResultCode.DeviceLost.Code)
+            {
+                HandleCrash();
+            }
         }
 
         public void HandleCrash()
