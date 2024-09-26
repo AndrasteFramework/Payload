@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
-using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Andraste.Payload.ModManagement;
@@ -69,6 +68,20 @@ namespace Andraste.Payload
 
         public virtual void Run(RemoteHooking.IContext context, string profileFolder)
         {
+            try
+            {
+                Run(profileFolder);
+            }
+            catch (Exception ex)
+            {
+                Logger.Fatal(ex, "Unhandled Exception in the Andraste Bootstrapping process.");
+                ShowExceptionDialog(ex);
+                IsRunning = false;
+                Shutdown();
+            }
+        }
+        
+        private void Run(string profileFolder) {
             if (ShouldSetupExceptionHandlers)
             {
                 RegisterExceptionHandlers();
@@ -139,6 +152,7 @@ namespace Andraste.Payload
             Container.Unload();
             UnregisterExceptionHandlers();
             LogManager.Flush();
+            Thread.Sleep(1000); // Give the actual flushing some time.
             Environment.Exit(1);
         }
 
@@ -176,14 +190,22 @@ namespace Andraste.Payload
                 var conf = mods.ModInformation.Configurations[mods.ModSetting.ActiveConfiguration];
                 foreach (var feature in conf.Features.Keys)
                 {
-                    if (FeatureParser.TryGetValue(feature, out var parser))
+                    try
                     {
-                        var parsed = parser.Parse(conf.Features[feature]);
-                        conf._parsedFeatures.Add(feature, parsed);
+                        if (FeatureParser.TryGetValue(feature, out var parser))
+                        {
+                            var parsed = parser.Parse(conf.Features[feature]);
+                            conf._parsedFeatures.Add(feature, parsed);
+                        }
+                        else
+                        {
+                            Logger.Warn($"Unknown Feature {feature}. Skipping");
+                        }
                     }
-                    else
+                    catch (Exception exception)
                     {
-                        Logger.Warn($"Unknown Feature {feature}. Skipping");
+                        Logger.Warn(exception, $"Exception when parsing {feature} for {mods.ModInformation.Slug}. " +
+                                               "Syntax error in mod.json? Missing dependant mod?");
                     }
                 }
             }
@@ -263,7 +285,7 @@ namespace Andraste.Payload
             var fileStdout = new FileTarget("fileStdout")
             {
                 FileName = outputLog, AutoFlush = true, DeleteOldFileOnStartup = true,
-                Layout = "${longdate}|${threadname}(${threadid})|${level:uppercase=true}|${logger}|${message}"
+                Layout = "${longdate}|${threadname}(${threadid})|${level:uppercase=true}|${logger}|${message}${exception:format=ToString}"
             };
 
             // TODO: Proper \r\n before exception, but only if there is an exception...
@@ -308,20 +330,24 @@ namespace Andraste.Payload
         protected virtual void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
             Logger.Fatal(e.ExceptionObject as Exception, $"Got uncaught Exception{Environment.NewLine}");
-            var text = "An Uncaught Exception has happened and the game will now crash!\n" +
-                       $"This is definitely caused by Andraste / {FrameworkName}!\n\n" +
-                       $"---------------------\n{e.ExceptionObject}";
-            var mwh = Process.GetCurrentProcess().MainWindowHandle;
-            const uint MB_OK = 0;
-            const uint MB_ICONERROR = 0x00000010U;
-            User32.MessageBox(mwh != IntPtr.Zero ? mwh : IntPtr.Zero, text, "Uncaught Exception", MB_OK | MB_ICONERROR);
-
+            ShowExceptionDialog(e.ExceptionObject as Exception);
             if (e.IsTerminating)
             {
                 IsRunning = false;
                 Shutdown(); // Run() won't be running anymore if it has caused the exception
+                // @TODO: We should maybe just unload all hooks so the game can continue running
             }
-            // @TODO: We should maybe just unload all hooks so the game can continue running
+        }
+
+        private void ShowExceptionDialog(Exception e)
+        {
+            var text = "An Uncaught Exception has happened and the game will now crash!\n" +
+                       $"This is definitely caused by Andraste / {FrameworkName}!\n\n" +
+                       $"---------------------\n{e}";
+            var mwh = Process.GetCurrentProcess().MainWindowHandle;
+            const uint MB_OK = 0;
+            const uint MB_ICONERROR = 0x00000010U;
+            User32.MessageBox(mwh != IntPtr.Zero ? mwh : IntPtr.Zero, text, "Uncaught Exception", MB_OK | MB_ICONERROR);
         }
 
         protected virtual void CurrentDomain_ProcessExit(object sender, EventArgs e)
