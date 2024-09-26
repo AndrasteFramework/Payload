@@ -16,6 +16,7 @@ using EasyHook;
 using NLog;
 using NLog.Config;
 using NLog.Targets;
+using Semver;
 
 namespace Andraste.Payload
 {
@@ -52,8 +53,9 @@ namespace Andraste.Payload
         private bool _ready;
         
         protected readonly Dictionary<string, IFeatureParser> FeatureParser = new Dictionary<string, IFeatureParser>();
+        protected readonly Dictionary<string, SemVersion> BuiltInDependencies = new Dictionary<string, SemVersion>();
         public readonly ManagerContainer Container;
-        private readonly ModLoader _modLoader;
+        protected readonly ModLoader ModLoader;
 
         protected EntryPoint(RemoteHooking.IContext context, string profileFolder)
         {
@@ -62,7 +64,7 @@ namespace Andraste.Payload
             FrameworkFolder = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             ProfileFolder = profileFolder;
             Container = new ManagerContainer();
-            _modLoader = new ModLoader(this);
+            ModLoader = new ModLoader(this);
         }
 
         public virtual void Run(RemoteHooking.IContext context, string profileFolder)
@@ -90,7 +92,7 @@ namespace Andraste.Payload
 
             Logger.Trace("Internal Initialization done, calling Pre-Wakeup");
             PreWakeup();
-            _modLoader.EmitGenericEvent(EGenericEvent.EPreWakeup);
+            ModLoader.EmitGenericEvent(EGenericEvent.EPreWakeup);
             
             Logger.Trace("Loading the Managers");
             Container.Load();
@@ -102,7 +104,7 @@ namespace Andraste.Payload
             RemoteHooking.WakeUpProcess();
             Logger.Trace("Calling Post-Wakeup");
             PostWakeup();
-            _modLoader.EmitGenericEvent(EGenericEvent.EPostWakeup);
+            ModLoader.EmitGenericEvent(EGenericEvent.EPostWakeup);
 
             while (IsRunning)
             {
@@ -121,7 +123,7 @@ namespace Andraste.Payload
                     {
                         Logger.Error(ex, "Exception in ApplicationReady");
                     }
-                    _modLoader.EmitGenericEvent(EGenericEvent.EApplicationReady);
+                    ModLoader.EmitGenericEvent(EGenericEvent.EApplicationReady);
                 }
 
                 Thread.Sleep(100);
@@ -133,7 +135,7 @@ namespace Andraste.Payload
         protected virtual void Shutdown()
         {
             Logger.Info("Shutting down and exiting CLR");
-            _modLoader?.UnloadPlugins();
+            ModLoader?.UnloadPlugins();
             Container.Unload();
             UnregisterExceptionHandlers();
             LogManager.Flush();
@@ -148,9 +150,9 @@ namespace Andraste.Payload
         /// </summary>
         protected virtual void ImplementMods()
         {
-            _modLoader.ImplementVfs();
-            _modLoader.ImplementPlugins();
-            _modLoader.LoadPlugins();
+            ModLoader.ImplementVfs();
+            ModLoader.ImplementPlugins();
+            ModLoader.LoadPlugins();
         }
 
         /// <summary>
@@ -161,13 +163,14 @@ namespace Andraste.Payload
         protected virtual void LoadMods()
         {
             DiscoverMods();
+            ValidateDependencies();
             LoadFeatureParsers();
             ParseModFeatures();
         }
 
         protected virtual void ParseModFeatures()
         {
-            foreach (var mods in _modLoader.EnabledMods)
+            foreach (var mods in ModLoader.EnabledMods)
             {
                 Logger.Info($"Enabled Mod {mods.ModInformation.Slug}");
                 var conf = mods.ModInformation.Configurations[mods.ModSetting.ActiveConfiguration];
@@ -188,7 +191,12 @@ namespace Andraste.Payload
 
         protected virtual void DiscoverMods()
         {
-            _modLoader.EnabledMods = _modLoader.DiscoverMods(ProfileFolder);
+            ModLoader.EnabledMods = ModLoader.DiscoverMods(ProfileFolder);
+        }
+
+        protected virtual void ValidateDependencies()
+        {
+            ModLoader.ValidateDependencies(BuiltInDependencies);
         }
 
         protected virtual void LoadFeatureParsers()

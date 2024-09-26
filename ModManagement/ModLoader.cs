@@ -6,10 +6,12 @@ using System.Reflection;
 using System.Text.Json;
 using Andraste.Payload.VFS;
 using Andraste.Shared.ModManagement;
+using Andraste.Shared.ModManagement.DependencyResolution;
 using Andraste.Shared.ModManagement.Json;
-using Andraste.Shared.ModManagement.Json.Features;
 using Andraste.Shared.ModManagement.Json.Features.Plugin;
+using Andraste.Shared.ModManagement.Json.Features.Vfs;
 using NLog;
+using Semver;
 
 namespace Andraste.Payload.ModManagement
 {
@@ -199,6 +201,42 @@ namespace Andraste.Payload.ModManagement
                 {
                     Logger.Warn(exception, "Exception during generic event handling of a plugin");
                 }
+            }
+        }
+
+        public void ValidateDependencies(Dictionary<string, SemVersion> builtInDependencies)
+        {
+            var availableMods = EnabledMods.ToDictionary(mod => mod.ModInformation.Slug, mod => mod.ModInformation.SemanticVersion);
+            foreach (var dependency in builtInDependencies)
+            {
+                availableMods.Add(dependency.Key, dependency.Value);
+            }
+            
+            var requirements = EnabledMods.SelectMany(mod =>
+            {
+                if (mod.ModInformation.Dependencies == null)
+                {
+                    return Enumerable.Empty<IDependencyVersionRequirement>();
+                }
+                
+                return mod.ModInformation.Dependencies.Select(dependency =>
+                    DependencyResolver.ParseDependency(mod.ModInformation.Slug, dependency));
+            }).ToList();
+            
+            // Some old (pre andraste 0.3.0) mods don't have a SemanticVersion
+            var results = DependencyResolver.ValidateRequirementsSimple(availableMods, requirements);
+            if (results.Count == 0)
+            {
+                return;
+            }
+            
+            Logger.Warn("Found {} dependency constraint violation(s)", results.Count);
+            EnabledMods.RemoveAll(mod => results.Any(result => result.SourceSlug == mod.ModInformation.Slug));
+            
+            foreach (var violation in results)
+            {
+                Logger.Warn("Disabled {}, because the dependency on {} couldn't be solved. Type: {}, Message: {}", 
+                    violation.SourceSlug, violation.TargetSlug, violation.ViolationType, violation.Message ?? "");
             }
         }
     }
