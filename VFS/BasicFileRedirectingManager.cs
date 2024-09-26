@@ -54,10 +54,10 @@ namespace Andraste.Payload.VFS
                 {
                     var queryFile = SanitizePath(name);
                     // Debug Logging
-                    // _logger.Trace($"CreateFileA {name} ({queryFile}) => {_fileMap.ContainsKey(queryFile)}");
-                    //if (_fileMap.ContainsKey(queryFile)) _logger.Trace($"{queryFile} redirected to {_fileMap[queryFile]}");
-                    //if (!_fileMap.ContainsKey(queryFile)) _logger.Trace($"{queryFile} could not be redirected");
-                    var fileName = _fileMap.ContainsKey(queryFile) ? _fileMap[queryFile] : name;
+                    //_logger.Trace($"CreateFileA {name} ({queryFile}) => {_fileMap.ContainsKey(queryFile)}");
+                    // if (_fileMap.ContainsKey(queryFile)) _logger.Trace($"{queryFile} redirected to {_fileMap[queryFile]}");
+                    // if (!_fileMap.ContainsKey(queryFile)) _logger.Trace($"{queryFile} could not be redirected");
+                    var fileName = _fileMap.TryGetValue(queryFile, out var value) ? value : name;
                     return _createFileHook.Original(fileName, access, mode,attributes, disposition, andAttributes, file);
                 },
                 this);
@@ -76,7 +76,7 @@ namespace Andraste.Payload.VFS
                     // Games like Test Drive Unlimited (2006) are abusing FindFirstFile with an explicit file name to 
                     // get all file attributes, such as the  file size.
                     var queryFile = SanitizePath(name);
-                    var fileName = _fileMap.ContainsKey(queryFile) ? _fileMap[queryFile] : name;
+                    var fileName = _fileMap.TryGetValue(queryFile, out var value) ? value : name;
                     
                     return _findFirstFileHook.Original(fileName, data);
                 }, this);
@@ -128,7 +128,7 @@ namespace Andraste.Payload.VFS
         /// <br />
         /// This method should NOT be called by Mods, only by the modding framework.<br />
         /// This is because conflicts cannot be handled and would overwrite each-other.<br />
-        /// Instead the Framework should handle this gracefully and use a priority value
+        /// Instead, the Framework should handle this gracefully and use a priority value
         /// or ask the user via the Host Application on a per-file basis.
         /// </summary>
         /// <param name="sourcePath">The path the target application searches for</param>
@@ -149,7 +149,7 @@ namespace Andraste.Payload.VFS
         public string? QueryMapping(string sourcePath)
         {
             var queryFile = SanitizePath(sourcePath);
-            return _fileMap.ContainsKey(queryFile) ? _fileMap[queryFile] : null;
+            return _fileMap.TryGetValue(queryFile, out var value) ? value : null;
         }
         #nullable restore
     }
