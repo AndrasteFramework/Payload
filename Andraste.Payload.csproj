@@ -43,7 +43,7 @@
 
   <ItemGroup>
     <PackageReference Include="Andraste.EasyHook" Version="1.0.2" />
-    <PackageReference Include="Andraste.Shared" Version="0.2.2" />
+    <PackageReference Include="Andraste.Shared" Version="0.3.0" />
     <PackageReference Include="Iced" Version="1.21.0" />
     <PackageReference Include="NLog" Version="5.4.0" />
     <PackageReference Include="SharpDX.Direct3D9" Version="4.2.0" />
