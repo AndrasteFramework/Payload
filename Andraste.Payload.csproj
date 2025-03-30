@@ -3,7 +3,7 @@
   <PropertyGroup>
     <!-- NuGet Metadata -->
     <PackageId>Andraste.Payload</PackageId>
-    <PackageVersion>0.2.2</PackageVersion>
+    <PackageVersion>0.3.0</PackageVersion>
     <Title>Andraste Payload</Title>
     <Authors>MeFisto94</Authors>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
@@ -11,7 +11,7 @@
     <!-- <icon>icon.png</icon> -->
     <PackageProjectUrl>https://AndrasteFramework.github.io</PackageProjectUrl>
     <Description>The Payload is what is injected into the Application to provide all the modding functionality</Description>
-    <Copyright>Copyright 2023-2024 The AndrasteFramework Team</Copyright>
+    <Copyright>Copyright 2023-2025 The AndrasteFramework Team</Copyright>
     <PackageTags>Andraste ModdingFramework</PackageTags>
     <RepositoryUrl>https://github.com/AndrasteFramework/Payload</RepositoryUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -44,10 +44,10 @@
   <ItemGroup>
     <PackageReference Include="Andraste.EasyHook" Version="1.0.2" />
     <PackageReference Include="Andraste.Shared" Version="0.2.2" />
-    <PackageReference Include="Iced" Version="1.11.3" />
-    <PackageReference Include="NLog" Version="4.7.13" />
+    <PackageReference Include="Iced" Version="1.21.0" />
+    <PackageReference Include="NLog" Version="5.4.0" />
     <PackageReference Include="SharpDX.Direct3D9" Version="4.2.0" />
-    <PackageReference Include="System.Text.Json" Version="8.0.4" />
+    <PackageReference Include="System.Text.Json" Version="9.0.3" />
   </ItemGroup>
 
   <!-- For local dev only -->
