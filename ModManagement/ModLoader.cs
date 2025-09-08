@@ -113,7 +113,7 @@ namespace Andraste.Payload.ModManagement
             }
             catch (Exception ex)
             {
-                Logger.Warn(ex, "Exception caught when trying to load mods");
+                Logger.Warn(ex, "Exception caught when trying to load mods\n");
             }
 
             return enabledMods;
